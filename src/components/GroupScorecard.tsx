@@ -13,17 +13,23 @@ interface Props {
   players: PlayerScores[] | undefined | null;
   frontLabel?: string;
   backLabel?: string;
+  /** Optional 18-hole PAR values. When missing, PAR row is omitted. */
+  pars?: (number | null)[] | null;
+  /** Hide companion strip (rare). Default shows when companions exist. */
+  showCompanionStrip?: boolean;
 }
 
 /**
- * Smart Score–style combined scorecard: me first, then companions.
- * Two blocks (OUT 1–9 + OUT, then IN 10–18 + IN + TOTAL) with sticky names
- * and large high-contrast numbers for outdoor use.
+ * Image B — Smart Score “전체 스코어” block:
+ * 1) Light grey companion summary strip (name + total)
+ * 2) Two dark-header tables (전반 / 후반) with HOLE, optional PAR, every player, blue nine-total
  */
 export default function GroupScorecard({
   players,
   frontLabel = "전반",
   backLabel = "후반",
+  pars,
+  showCompanionStrip = true,
 }: Props) {
   const me = mePlayer(players ?? undefined);
   const comps = companionPlayers(players ?? undefined);
@@ -35,107 +41,153 @@ export default function GroupScorecard({
     })),
   ];
 
+  const hasPars =
+    Array.isArray(pars) &&
+    padScores(pars).slice(0, 18).some((p) => p != null && p > 0);
+
   return (
     <div className="space-y-3">
-      <NineBlock
-        offset={0}
-        label={frontLabel || "전반"}
-        side="OUT"
-        rows={rows}
-        showTotal={false}
-      />
-      <NineBlock
-        offset={9}
-        label={backLabel || "후반"}
-        side="IN"
-        rows={rows}
-        showTotal
-      />
+      {showCompanionStrip && comps.length > 0 && (
+        <CompanionStrip companions={comps} />
+      )}
+
+      <div className="space-y-3">
+        <p className="px-0.5 text-sm font-extrabold text-golf-950">전체 스코어</p>
+        <NineTable
+          offset={0}
+          title={frontLabel || "전반"}
+          rows={rows}
+          pars={hasPars ? padScores(pars) : null}
+        />
+        <NineTable
+          offset={9}
+          title={backLabel || "후반"}
+          rows={rows}
+          pars={hasPars ? padScores(pars) : null}
+        />
+      </div>
     </div>
   );
 }
 
-function NineBlock({
+function CompanionStrip({ companions }: { companions: PlayerScores[] }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#E5E8EB] bg-[#F1F3F5]">
+      <div
+        className="grid"
+        style={{
+          gridTemplateColumns: `repeat(${companions.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {companions.map((c, i) => {
+          const total = calcTotals(c.scores).total;
+          return (
+            <div
+              key={`${c.name}-${i}`}
+              className={`flex flex-col items-center justify-center px-2 py-3 ${
+                i > 0 ? "border-l border-[#D8DCE0]" : ""
+              }`}
+            >
+              <span className="max-w-full truncate text-xs font-semibold text-[#8B939C]">
+                {c.name}
+              </span>
+              <span className="mt-0.5 text-2xl font-extrabold tabular-nums leading-none text-[#1A1A1A]">
+                {total || "–"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function NineTable({
   offset,
-  label,
-  side,
+  title,
   rows,
-  showTotal,
+  pars,
 }: {
   offset: number;
-  label: string;
-  side: "OUT" | "IN";
+  title: string;
   rows: PlayerScores[];
-  showTotal: boolean;
+  pars: (number | null)[] | null;
 }) {
+  const parNine =
+    pars?.slice(offset, offset + 9).reduce<number>((s, v) => s + (v ?? 0), 0) ??
+    0;
+
   return (
-    <div className="overflow-hidden rounded-2xl border-2 border-golf-900 bg-golf-950 shadow-card">
-      <div className="flex items-center justify-between bg-golf-900 px-3 py-2">
-        <span className="text-sm font-extrabold text-white">
-          {label}
-          <span className="ml-1.5 font-bold text-golf-200">{side}</span>
+    <div className="overflow-hidden rounded-xl border border-[#C5CDD6] bg-white shadow-card">
+      {/* Course / half header — dark navy */}
+      <div className="flex items-center gap-1.5 bg-[#1A3044] px-3 py-2">
+        <span className="text-sm leading-none" aria-hidden>
+          🚩
         </span>
-        {showTotal && (
-          <span className="text-xs font-bold uppercase tracking-wide text-golf-200">
-            + TOTAL
-          </span>
-        )}
+        <span className="text-sm font-extrabold tracking-tight text-white">
+          {title}
+        </span>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse text-center">
+        <table className="w-full min-w-[480px] border-collapse text-center">
           <thead>
-            <tr className="bg-golf-800 text-golf-100">
-              <th className="sticky left-0 z-10 bg-golf-800 px-2 py-2 text-left text-xs font-extrabold">
-                선수
+            {/* HOLE row */}
+            <tr className="bg-[#5B6B7C] text-white">
+              <th className="sticky left-0 z-10 bg-[#5B6B7C] px-2 py-1.5 text-left text-[11px] font-extrabold tracking-wide">
+                HOLE
               </th>
               {Array.from({ length: 9 }, (_, i) => (
                 <th
                   key={offset + i + 1}
-                  className="px-1 py-2 text-[11px] font-bold tabular-nums"
+                  className="px-0.5 py-1.5 text-[11px] font-bold tabular-nums"
                 >
-                  {offset + i + 1}
+                  {i + 1}
                 </th>
               ))}
-              <th className="bg-golf-700 px-1.5 py-2 text-[11px] font-extrabold text-white">
-                {side}
+              <th className="bg-[#4A5A6A] px-1.5 py-1.5 text-[11px] font-extrabold">
+                T
               </th>
-              {showTotal && (
-                <th className="bg-amber-600 px-1.5 py-2 text-[11px] font-extrabold text-white">
-                  T
-                </th>
-              )}
             </tr>
+            {/* Optional PAR row */}
+            {pars && (
+              <tr className="bg-[#D9E2EC] text-[#3D4F5F]">
+                <td className="sticky left-0 z-10 bg-[#D9E2EC] px-2 py-1 text-left text-[11px] font-extrabold">
+                  PAR
+                </td>
+                {Array.from({ length: 9 }, (_, i) => (
+                  <td
+                    key={i}
+                    className="px-0.5 py-1 text-xs font-bold tabular-nums"
+                  >
+                    {pars[offset + i] ?? "–"}
+                  </td>
+                ))}
+                <td className="px-1.5 py-1 text-xs font-extrabold tabular-nums">
+                  {parNine || "–"}
+                </td>
+              </tr>
+            )}
           </thead>
           <tbody>
             {rows.map((row, ri) => {
               const scores = padScores(row.scores);
-              const { outTotal, inTotal, total } = calcTotals(scores);
+              const { outTotal, inTotal } = calcTotals(scores);
               const nine = offset === 0 ? outTotal : inTotal;
               const isMe = !!row.isMe;
+              const bg = isMe
+                ? "bg-[#EEF5FF]"
+                : ri % 2 === 0
+                  ? "bg-white"
+                  : "bg-[#F7F9FB]";
               return (
-                <tr
-                  key={`${row.name}-${ri}`}
-                  className={
-                    isMe
-                      ? "bg-golf-100 text-golf-950"
-                      : ri % 2 === 0
-                        ? "bg-white text-golf-950"
-                        : "bg-golf-50 text-golf-950"
-                  }
-                >
+                <tr key={`${row.name}-${ri}`} className={`${bg} text-[#1A1A1A]`}>
                   <td
-                    className={`sticky left-0 z-10 max-w-[72px] truncate px-2 py-2.5 text-left text-sm font-extrabold ${
-                      isMe
-                        ? "bg-golf-100 text-golf-900"
-                        : ri % 2 === 0
-                          ? "bg-white"
-                          : "bg-golf-50"
-                    }`}
+                    className={`sticky left-0 z-10 max-w-[76px] truncate px-2 py-2.5 text-left text-sm font-bold ${bg}`}
                   >
                     {isMe ? (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="rounded bg-golf-800 px-1 py-0.5 text-[10px] font-extrabold text-white">
+                      <span className="inline-flex max-w-full items-center gap-1">
+                        <span className="shrink-0 rounded bg-[#007AFF] px-1 py-0.5 text-[10px] font-extrabold text-white">
                           나
                         </span>
                         <span className="truncate">
@@ -146,25 +198,17 @@ function NineBlock({
                       row.name
                     )}
                   </td>
-                  {Array.from({ length: 9 }, (_, i) => {
-                    const v = scores[offset + i];
-                    return (
-                      <td
-                        key={i}
-                        className="px-0.5 py-2.5 text-lg font-extrabold tabular-nums leading-none"
-                      >
-                        {formatScore(v)}
-                      </td>
-                    );
-                  })}
-                  <td className="bg-golf-200 px-1.5 py-2.5 text-lg font-extrabold tabular-nums text-golf-950">
+                  {Array.from({ length: 9 }, (_, i) => (
+                    <td
+                      key={i}
+                      className="px-0.5 py-2.5 text-base font-extrabold tabular-nums leading-none"
+                    >
+                      {formatScore(scores[offset + i])}
+                    </td>
+                  ))}
+                  <td className="px-1.5 py-2.5 text-base font-extrabold tabular-nums text-[#007AFF]">
                     {nine || "–"}
                   </td>
-                  {showTotal && (
-                    <td className="bg-amber-100 px-1.5 py-2.5 text-xl font-extrabold tabular-nums text-golf-950">
-                      {total || "–"}
-                    </td>
-                  )}
                 </tr>
               );
             })}

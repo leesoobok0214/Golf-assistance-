@@ -6,6 +6,13 @@ import {
   type TeeColor,
 } from "@/lib/types";
 
+/** Smart Score–style English pill labels (Image A hero). */
+const TEE_COLOR_LABEL_EN: Record<TeeColor, string> = {
+  white: "White Tee",
+  blue: "Blue Tee",
+  red: "Red Tee",
+};
+
 const CHIP_CLASS: Record<TeeColor, string> = {
   white:
     "border-gray-400 bg-white text-gray-800 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]",
@@ -25,20 +32,24 @@ export default function TeeChip({
   teeColor,
   size = "sm",
   showLabel = true,
+  /** "ko" = 화이트/블루/레드 · "en" = White Tee / Blue Tee / Red Tee */
+  locale = "ko",
 }: {
   teeColor: TeeColor | string | undefined | null;
   size?: Size;
   showLabel?: boolean;
+  locale?: "ko" | "en";
 }) {
   const color = normalizeTeeColor(teeColor);
-  const label = TEE_COLOR_LABEL[color];
+  const label =
+    locale === "en" ? TEE_COLOR_LABEL_EN[color] : TEE_COLOR_LABEL[color];
   const pad = size === "md" ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-[11px]";
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full border-2 font-extrabold ${CHIP_CLASS[color]} ${pad}`}
-      title={`티: ${label}`}
-      aria-label={`티 컬러 ${label}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 font-extrabold ${CHIP_CLASS[color]} ${pad}`}
+      title={`티: ${TEE_COLOR_LABEL[color]}`}
+      aria-label={`티 컬러 ${TEE_COLOR_LABEL[color]}`}
     >
       <span
         className={`inline-block rounded-full ${DOT_CLASS[color]} ${
@@ -51,7 +62,7 @@ export default function TeeChip({
   );
 }
 
-/** Segmented tee selector — Smart Score style tabs. */
+/** Segmented tee selector — Smart Score style tabs (화이트 / 블루 / 레드). */
 export function TeeColorTabs({
   value,
   onChange,
@@ -61,30 +72,34 @@ export function TeeColorTabs({
   onChange: (c: TeeColor) => void;
   required?: boolean;
 }) {
-  const options: { id: TeeColor; label: string; selected: string; idle: string }[] =
-    [
-      {
-        id: "white",
-        label: "화이트",
-        selected:
-          "border-gray-500 bg-white text-gray-900 shadow-sm ring-2 ring-golf-600",
-        idle: "border-gray-300 bg-white/80 text-gray-600 hover:border-gray-400",
-      },
-      {
-        id: "blue",
-        label: "블루",
-        selected:
-          "border-blue-800 bg-blue-600 text-white shadow-sm ring-2 ring-golf-600",
-        idle: "border-blue-300 bg-blue-50 text-blue-800 hover:border-blue-500",
-      },
-      {
-        id: "red",
-        label: "레드",
-        selected:
-          "border-red-800 bg-red-600 text-white shadow-sm ring-2 ring-golf-600",
-        idle: "border-red-300 bg-red-50 text-red-800 hover:border-red-500",
-      },
-    ];
+  const options: {
+    id: TeeColor;
+    label: string;
+    selected: string;
+    idle: string;
+  }[] = [
+    {
+      id: "white",
+      label: "화이트",
+      selected:
+        "border-gray-500 bg-white text-gray-900 shadow-sm ring-2 ring-golf-600",
+      idle: "border-gray-300 bg-white/80 text-gray-600 hover:border-gray-400",
+    },
+    {
+      id: "blue",
+      label: "블루",
+      selected:
+        "border-blue-800 bg-blue-600 text-white shadow-sm ring-2 ring-golf-600",
+      idle: "border-blue-300 bg-blue-50 text-blue-800 hover:border-blue-500",
+    },
+    {
+      id: "red",
+      label: "레드",
+      selected:
+        "border-red-800 bg-red-600 text-white shadow-sm ring-2 ring-golf-600",
+      idle: "border-red-300 bg-red-50 text-red-800 hover:border-red-500",
+    },
+  ];
 
   return (
     <div className="space-y-1.5" role="radiogroup" aria-label="티 컬러">
