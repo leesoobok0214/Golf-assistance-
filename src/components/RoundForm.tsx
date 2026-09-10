@@ -102,7 +102,7 @@ export default function RoundForm({
 
       {showOcrHint && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-normal text-amber-950">
-          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·스코어를 꼭 확인해 주세요.
+          스마트스코어처럼 파 대비(±) 카드면 파+대비로 타수를 계산해요. 그래도 틀릴 수 있으니 꼭 확인하세요.
         </div>
       )}
 

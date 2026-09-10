@@ -9,6 +9,8 @@ import {
   type PlayerScores,
   type TeeColor,
 } from "./types";
+import { parseSmartScoreRelative } from "./smartscore";
+
 
 export interface OcrParseResult {
   raw: string;
@@ -465,6 +467,27 @@ export function parseOcrText(raw: string): OcrParseResult {
   let time = "08:00";
   if (timeMatch) {
     time = `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}`;
+  }
+
+  // SmartScore relative-to-par (PAR row + ± scores) — preferred when detected
+  const smart = parseSmartScoreRelative(raw, {
+    meNames: ["이수복"],
+    fallbackDate: date,
+    fallbackTime: time,
+  });
+  if (smart.matched) {
+    return {
+      raw,
+      courseName: smart.courseName || extractCourseName(raw, lines),
+      date: smart.date || date,
+      time: smart.time || time,
+      frontCourse: smart.frontCourse,
+      backCourse: smart.backCourse,
+      teeColor: smart.teeColor,
+      companions: smart.companions,
+      scores: smart.scores,
+      players: smart.players,
+    };
   }
 
   const courseName = extractCourseName(raw, lines);
