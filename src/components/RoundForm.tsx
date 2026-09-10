@@ -112,7 +112,11 @@ export default function RoundForm({
       router.push(`/rounds/${id}`);
     } catch (err) {
       console.error(err);
-      setError("저장에 실패했습니다. 다시 시도해 주세요.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "저장에 실패했습니다. 다시 시도해 주세요."
+      );
       setSaving(false);
     }
   };

@@ -1,5 +1,5 @@
 import type { GolfRound, PlayerScores } from "./types";
-import { calcTotals, companionPlayers } from "./types";
+import { calcTotals, companionPlayers, padScores } from "./types";
 
 export interface StatsSummary {
   count: number;
@@ -16,11 +16,11 @@ export interface StatsSummary {
 }
 
 function playerTotal(p: PlayerScores): number {
-  return calcTotals(p.scores).total;
+  return calcTotals(padScores(p?.scores)).total;
 }
 
 export function computeStats(rounds: GolfRound[]): StatsSummary {
-  const real = rounds.filter((r) => r.total > 0);
+  const real = (rounds ?? []).filter((r) => (r?.total ?? 0) > 0);
   if (real.length === 0) {
     return {
       count: 0,

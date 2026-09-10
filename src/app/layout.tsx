@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import ServiceWorkerRefresh from "@/components/ServiceWorkerRefresh";
 
 export const metadata: Metadata = {
   title: "골프비서",
@@ -48,6 +49,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-golf-50 text-golf-950 antialiased">
+        <ServiceWorkerRefresh />
         {children}
         <BottomNav />
       </body>

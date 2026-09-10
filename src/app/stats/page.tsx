@@ -10,11 +10,21 @@ import type { GolfRound } from "@/lib/types";
 export default function StatsPage() {
   const [rounds, setRounds] = useState<GolfRound[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       setRounds(await listRounds());
+    } catch (err) {
+      console.error(err);
+      setRounds([]);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "통계를 불러오지 못했습니다."
+      );
     } finally {
       setLoading(false);
     }
@@ -34,6 +44,12 @@ export default function StatsPage() {
           기기 안 IndexedDB 데이터만 사용해요
         </p>
       </header>
+
+      {error && (
+        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <p className="py-10 text-center text-base font-medium text-golf-600">

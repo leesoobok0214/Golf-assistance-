@@ -50,9 +50,11 @@ export function padScores(scores: HoleScores | undefined | null): HoleScores {
   return next.slice(0, 18);
 }
 
-export function calcTotals(scores: HoleScores) {
-  const out = scores.slice(0, 9).reduce<number>((s, v) => s + (v ?? 0), 0);
-  const inn = scores.slice(9, 18).reduce<number>((s, v) => s + (v ?? 0), 0);
+/** Tolerates undefined/null/short arrays — always pads first. */
+export function calcTotals(scores: HoleScores | undefined | null) {
+  const s = padScores(scores);
+  const out = s.slice(0, 9).reduce<number>((sum, v) => sum + (v ?? 0), 0);
+  const inn = s.slice(9, 18).reduce<number>((sum, v) => sum + (v ?? 0), 0);
   return { outTotal: out, inTotal: inn, total: out + inn };
 }
 
@@ -65,13 +67,26 @@ export function mePlayer(players: PlayerScores[] | undefined): PlayerScores {
   if (!players?.length) {
     return { name: "나", scores: emptyScores(), isMe: true };
   }
-  return players.find((p) => p.isMe) ?? players[0];
+  const p = players.find((x) => x.isMe) ?? players[0];
+  return {
+    name: (p.name || "나").trim() || "나",
+    scores: padScores(p.scores),
+    isMe: true,
+  };
 }
 
-export function companionPlayers(players: PlayerScores[] | undefined): PlayerScores[] {
+export function companionPlayers(
+  players: PlayerScores[] | undefined
+): PlayerScores[] {
   if (!players?.length) return [];
-  const me = mePlayer(players);
-  return players.filter((p) => p !== me && !p.isMe);
+  const me = players.find((p) => p.isMe) ?? players[0];
+  return players
+    .filter((p) => p !== me && !p.isMe)
+    .map((p) => ({
+      name: (p.name || "동반자").trim() || "동반자",
+      scores: padScores(p.scores),
+      isMe: false as const,
+    }));
 }
 
 /** Build companions display string from players (excluding me). */
@@ -88,9 +103,9 @@ export function companionsLabel(players: PlayerScores[] | undefined): string {
  */
 export function normalizePlayers(
   input: {
-    scores?: HoleScores;
-    players?: PlayerScores[];
-    companions?: string;
+    scores?: HoleScores | null;
+    players?: PlayerScores[] | null;
+    companions?: string | null;
   },
   defaultMeName = "나"
 ): { scores: HoleScores; players: PlayerScores[]; companions: string } {
@@ -98,9 +113,13 @@ export function normalizePlayers(
 
   if (input.players && input.players.length > 0) {
     const players = input.players.map((p, i) => ({
-      name: (p.name || (p.isMe || i === 0 ? defaultMeName : `동반자${i}`)).trim() || defaultMeName,
-      scores: padScores(p.scores),
-      isMe: !!p.isMe || (i === 0 && !input.players!.some((x) => x.isMe)),
+      name:
+        (
+          p?.name ||
+          (p?.isMe || i === 0 ? defaultMeName : `동반자${i}`)
+        ).trim() || defaultMeName,
+      scores: padScores(p?.scores),
+      isMe: !!p?.isMe || (i === 0 && !input.players!.some((x) => x?.isMe)),
     }));
     // Ensure exactly one isMe
     const meIdx = players.findIndex((p) => p.isMe);
@@ -108,11 +127,10 @@ export function normalizePlayers(
       p.isMe = i === (meIdx >= 0 ? meIdx : 0);
     });
     const me = players.find((p) => p.isMe)!;
-    // Prefer explicit scores if provided and me scores empty
-    const meScores =
-      me.scores.some((s) => s != null)
-        ? me.scores
-        : padScores(input.scores);
+    // Prefer me scores if filled; else fall back to top-level scores
+    const meScores = me.scores.some((s) => s != null)
+      ? me.scores
+      : padScores(input.scores);
     me.scores = meScores;
     return {
       scores: meScores,

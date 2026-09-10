@@ -11,12 +11,22 @@ export default function HistoryPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "real" | "sample">("all");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async (q: string) => {
     setLoading(true);
+    setError("");
     try {
       const data = await searchRounds(q);
       setRounds(data);
+    } catch (err) {
+      console.error(err);
+      setRounds([]);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "라운드 목록을 불러오지 못했습니다."
+      );
     } finally {
       setLoading(false);
     }
@@ -73,11 +83,17 @@ export default function HistoryPage() {
         ))}
       </div>
 
+      {error && (
+        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+          {error}
+        </p>
+      )}
+
       {loading ? (
         <p className="py-10 text-center text-base font-medium text-golf-600">
           불러오는 중…
         </p>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length === 0 && !error ? (
         <div className="rounded-2xl border-2 border-dashed border-golf-300 px-4 py-12 text-center text-base font-medium text-golf-600">
           결과가 없습니다
         </div>

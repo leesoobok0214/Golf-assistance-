@@ -1,9 +1,9 @@
 "use client";
 
-import { calcTotals, type HoleScores } from "@/lib/types";
+import { calcTotals, padScores, type HoleScores } from "@/lib/types";
 
 interface Props {
-  scores: HoleScores;
+  scores: HoleScores | undefined | null;
   editable?: boolean;
   onChange?: (scores: HoleScores) => void;
   frontLabel?: string;
@@ -22,11 +22,12 @@ export default function ScorecardGrid({
   compact = false,
   playerName,
 }: Props) {
-  const { outTotal, inTotal, total } = calcTotals(scores);
+  const safe = padScores(scores);
+  const { outTotal, inTotal, total } = calcTotals(safe);
 
   const setHole = (idx: number, raw: string) => {
     if (!onChange) return;
-    const next = [...scores] as HoleScores;
+    const next = [...safe] as HoleScores;
     if (raw === "" || raw === "-") {
       next[idx] = null;
     } else {
@@ -73,7 +74,7 @@ export default function ScorecardGrid({
                   inputMode="numeric"
                   min={1}
                   max={15}
-                  value={scores[idx] ?? ""}
+                  value={safe[idx] ?? ""}
                   onChange={(e) => setHole(idx, e.target.value)}
                   className={`w-full appearance-none bg-white text-center font-extrabold text-golf-950 outline-none focus:bg-golf-50 ${
                     compact ? "py-2 text-base" : "min-h-[48px] py-3 text-xl"
@@ -86,7 +87,7 @@ export default function ScorecardGrid({
                     compact ? "py-2 text-base" : "min-h-[48px] py-3 text-xl"
                   }`}
                 >
-                  {scores[idx] ?? "–"}
+                  {safe[idx] ?? "–"}
                 </div>
               )}
             </div>

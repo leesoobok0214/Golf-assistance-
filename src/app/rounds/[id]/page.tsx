@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import GroupScorecard from "@/components/GroupScorecard";
 import ScorecardGrid from "@/components/ScorecardGrid";
 import { deleteRound, getRound } from "@/lib/db";
 import type { GolfRound } from "@/lib/types";
-import { calcTotals, companionPlayers, mePlayer } from "@/lib/types";
+import {
+  calcTotals,
+  companionPlayers,
+  mePlayer,
+  padScores,
+} from "@/lib/types";
 
 export default function RoundDetailPage() {
   const params = useParams();
@@ -14,6 +20,7 @@ export default function RoundDetailPage() {
   const id = Number(params.id);
   const [round, setRound] = useState<GolfRound | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!Number.isFinite(id)) {
@@ -21,9 +28,18 @@ export default function RoundDetailPage() {
       return;
     }
     setLoading(true);
+    setError("");
     try {
       const r = await getRound(id);
       setRound(r ?? null);
+    } catch (err) {
+      console.error(err);
+      setRound(null);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "라운드를 불러오지 못했습니다."
+      );
     } finally {
       setLoading(false);
     }
@@ -36,8 +52,14 @@ export default function RoundDetailPage() {
   const onDelete = async () => {
     if (!round?.id) return;
     if (!confirm("이 라운드를 삭제할까요?")) return;
-    await deleteRound(round.id);
-    router.push("/history");
+    try {
+      await deleteRound(round.id);
+      router.push("/history");
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : "삭제에 실패했습니다."
+      );
+    }
   };
 
   if (loading) {
@@ -46,6 +68,19 @@ export default function RoundDetailPage() {
         <p className="py-16 text-center text-base font-medium text-golf-600">
           불러오는 중…
         </p>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="page space-y-4">
+        <p className="rounded-2xl border-2 border-red-300 bg-red-50 px-4 py-6 text-center text-base font-semibold text-red-700">
+          {error}
+        </p>
+        <Link href="/history" className="btn-secondary block text-center">
+          기록으로 돌아가기
+        </Link>
       </main>
     );
   }
@@ -64,13 +99,21 @@ export default function RoundDetailPage() {
   }
 
   const me = mePlayer(round.players);
+  const meScores = padScores(me.scores?.length ? me.scores : round.scores);
+  const meTotals = calcTotals(meScores);
   const comps = companionPlayers(round.players);
+  const outVal = round.outTotal || meTotals.outTotal;
+  const inVal = round.inTotal || meTotals.inTotal;
+  const totalVal = round.total || meTotals.total;
 
   return (
     <main className="page space-y-5">
+      {/* —— A) Top: MY score only —— */}
       <header className="space-y-1 pt-1">
         <div className="flex items-start justify-between gap-2">
-          <h1 className="text-2xl font-extrabold text-golf-950">{round.courseName}</h1>
+          <h1 className="text-2xl font-extrabold text-golf-950">
+            {round.courseName}
+          </h1>
           {round.isSample && (
             <span className="shrink-0 rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">
               예시 데이터
@@ -81,37 +124,22 @@ export default function RoundDetailPage() {
           {round.date}
           {round.time ? ` · ${round.time}` : ""}
         </p>
-      </header>
-
-      <section className="grid grid-cols-3 gap-2">
-        <MiniStat label="OUT" value={round.outTotal} />
-        <MiniStat label="IN" value={round.inTotal} />
-        <MiniStat label="TOTAL" value={round.total} highlight />
-      </section>
-
-      <section className="rounded-2xl border-2 border-golf-300 bg-white p-4 shadow-card space-y-2.5 text-base">
         {(round.frontCourse || round.backCourse) && (
-          <Row
-            label="코스"
-            value={[
+          <p className="text-sm font-medium text-golf-600">
+            {[
               round.frontCourse && `전반 ${round.frontCourse}`,
               round.backCourse && `후반 ${round.backCourse}`,
             ]
               .filter(Boolean)
               .join(" · ")}
-          />
+          </p>
         )}
-        {comps.length > 0 && (
-          <Row
-            label="동반자"
-            value={comps
-              .map((c) => {
-                const t = calcTotals(c.scores).total;
-                return t > 0 ? `${c.name} ${t}타` : c.name;
-              })
-              .join(", ")}
-          />
-        )}
+      </header>
+
+      <section className="grid grid-cols-3 gap-2">
+        <MiniStat label="OUT" value={outVal} />
+        <MiniStat label="IN" value={inVal} />
+        <MiniStat label="TOTAL" value={totalVal} highlight />
       </section>
 
       <section className="space-y-2">
@@ -119,28 +147,30 @@ export default function RoundDetailPage() {
           {me.name || "나"} · 내 스코어
         </h2>
         <ScorecardGrid
-          scores={round.scores}
+          scores={meScores}
           frontLabel={round.frontCourse || "전반"}
           backLabel={round.backCourse || "후반"}
         />
       </section>
 
-      {comps.map((c) => (
-        <section key={c.name} className="space-y-2">
+      {/* —— B) Bottom: FULL scorecard for everyone —— */}
+      <section className="space-y-2">
+        <div className="flex items-end justify-between gap-2">
           <h2 className="text-base font-extrabold text-golf-950">
-            {c.name}
-            <span className="ml-2 text-sm font-bold text-golf-600">
-              {calcTotals(c.scores).total || "–"}타
-            </span>
+            전체 스코어카드
           </h2>
-          <ScorecardGrid
-            scores={c.scores}
-            frontLabel={round.frontCourse || "전반"}
-            backLabel={round.backCourse || "후반"}
-            compact
-          />
-        </section>
-      ))}
+          {comps.length > 0 && (
+            <p className="text-xs font-bold text-golf-600">
+              {comps.length + 1}명
+            </p>
+          )}
+        </div>
+        <GroupScorecard
+          players={round.players}
+          frontLabel={round.frontCourse || "전반"}
+          backLabel={round.backCourse || "후반"}
+        />
+      </section>
 
       <div className="flex gap-2">
         <Link href="/history" className="btn-secondary flex-1 text-center">
@@ -183,15 +213,6 @@ function MiniStat({
         {label}
       </p>
       <p className="text-2xl font-extrabold">{value || "–"}</p>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-3">
-      <span className="w-16 shrink-0 font-extrabold text-golf-700">{label}</span>
-      <span className="font-semibold text-golf-950">{value}</span>
     </div>
   );
 }

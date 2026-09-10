@@ -12,12 +12,22 @@ import type { GolfRound } from "@/lib/types";
 export default function HomePage() {
   const [rounds, setRounds] = useState<GolfRound[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError("");
     try {
       const data = await listRounds();
       setRounds(data);
+    } catch (err) {
+      console.error(err);
+      setRounds([]);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "라운드를 불러오지 못했습니다."
+      );
     } finally {
       setLoading(false);
     }
@@ -50,6 +60,12 @@ export default function HomePage() {
           </p>
         </div>
       </header>
+
+      {error && (
+        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+          {error}
+        </p>
+      )}
 
       <section className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border-2 border-golf-200 bg-white p-4 shadow-card">
