@@ -53,18 +53,156 @@ async function getWorker(): Promise<Worker> {
   return workerPromise;
 }
 
+/** Load File/Blob/URL into a canvas via createImageBitmap (browser-only). */
+async function loadImageToCanvas(
+  image: File | Blob | string
+): Promise<HTMLCanvasElement> {
+  let blob: Blob;
+  if (typeof image === "string") {
+    const res = await fetch(image);
+    blob = await res.blob();
+  } else {
+    blob = image;
+  }
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    throw new Error("2D canvas unavailable");
+  }
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return canvas;
+}
+
+/** Optional greyscale + contrast on full canvas or a horizontal strip. */
+function canvasStrip(
+  source: HTMLCanvasElement,
+  y0Frac: number,
+  y1Frac: number,
+  opts?: { greyscale?: boolean; contrast?: number; intercept?: number }
+): HTMLCanvasElement {
+  const y0 = Math.max(0, Math.floor(source.height * y0Frac));
+  const y1 = Math.min(source.height, Math.floor(source.height * y1Frac));
+  const h = Math.max(1, y1 - y0);
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("2D canvas unavailable");
+  ctx.drawImage(source, 0, y0, source.width, h, 0, 0, source.width, h);
+
+  const greyscale = opts?.greyscale ?? false;
+  const contrast = opts?.contrast ?? 1;
+  const intercept = opts?.intercept ?? 0;
+  if (greyscale || contrast !== 1 || intercept !== 0) {
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      let g =
+        0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (!greyscale) {
+        // still apply contrast per-channel from luminance blend
+        g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      }
+      if (greyscale) {
+        let v = contrast * g + intercept;
+        v = Math.max(0, Math.min(255, v));
+        d[i] = d[i + 1] = d[i + 2] = v;
+      } else if (contrast !== 1 || intercept !== 0) {
+        for (let c = 0; c < 3; c++) {
+          const v = contrast * d[i + c] + intercept;
+          d[i + c] = Math.max(0, Math.min(255, v));
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+  return canvas;
+}
+
+function dedupeLines(texts: string[]): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const text of texts) {
+    for (const line of text.split(/\r?\n/)) {
+      const t = line.trim();
+      if (!t) continue;
+      if (seen.has(t)) continue;
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out.join("\n");
+}
+
 export async function recognizeScorecard(
   image: File | Blob | string,
   onProgress?: (p: number, status: string) => void
 ): Promise<OcrParseResult> {
   onProgress?.(5, "OCR 엔진 준비 중…");
   const worker = await getWorker();
-  onProgress?.(20, "이미지 인식 중…");
+  onProgress?.(12, "이미지 준비 중…");
 
-  const { data } = await worker.recognize(image);
+  let combined = "";
+  try {
+    const source = await loadImageToCanvas(image);
+    const passes: { label: string; canvas: HTMLCanvasElement }[] = [
+      {
+        label: "full",
+        canvas: canvasStrip(source, 0, 1, {
+          greyscale: false,
+          contrast: 1.15,
+          intercept: -10,
+        }),
+      },
+      {
+        label: "strip-22-50",
+        canvas: canvasStrip(source, 0.22, 0.5, {
+          greyscale: true,
+          contrast: 1.5,
+          intercept: -40,
+        }),
+      },
+      {
+        label: "strip-35-60",
+        canvas: canvasStrip(source, 0.35, 0.6, {
+          greyscale: true,
+          contrast: 1.5,
+          intercept: -40,
+        }),
+      },
+      {
+        label: "strip-55-95",
+        canvas: canvasStrip(source, 0.55, 0.95, {
+          greyscale: true,
+          contrast: 1.5,
+          intercept: -40,
+        }),
+      },
+    ];
+
+    const texts: string[] = [];
+    for (let i = 0; i < passes.length; i++) {
+      const p = passes[i];
+      const pct = 15 + Math.round(((i + 1) / passes.length) * 70);
+      onProgress?.(pct, `이미지 인식 중… (${p.label})`);
+      const { data } = await worker.recognize(p.canvas);
+      texts.push(data.text || "");
+    }
+    combined = dedupeLines(texts);
+  } catch {
+    // Fallback: single-pass recognize on the original input (e.g. non-DOM env)
+    onProgress?.(40, "이미지 인식 중…");
+    const { data } = await worker.recognize(image);
+    combined = data.text || "";
+  }
+
   onProgress?.(90, "결과 정리 중…");
-  const raw = data.text || "";
-  const parsed = parseOcrText(raw);
+  const parsed = parseOcrText(combined);
   onProgress?.(100, "완료");
   return parsed;
 }
