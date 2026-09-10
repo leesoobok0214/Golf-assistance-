@@ -55,63 +55,55 @@ export default function ScorecardGrid({
         </span>
       </div>
 
-      {/* table keeps 1–9 and 10–18 columns perfectly aligned */}
-      <table className="w-full table-fixed border-collapse">
-        <thead>
-          <tr className="bg-golf-50/80">
-            {Array.from({ length: 9 }, (_, i) => {
-              const hole = offset + i + 1;
-              return (
-                <th
-                  key={hole}
-                  className={`border border-golf-100 px-0 py-1 text-center font-medium tabular-nums text-golf-500 ${
-                    compact ? "text-[10px]" : "text-[11px]"
+      {/* CSS grid: identical 9 columns for header + scores — 10–18 never shift */}
+      <div className="grid grid-cols-9 border-t border-golf-100">
+        {Array.from({ length: 9 }, (_, i) => {
+          const hole = offset + i + 1;
+          return (
+            <div
+              key={`h-${hole}`}
+              className={`min-w-0 truncate border-b border-r border-golf-100 bg-golf-50/80 px-0.5 py-1 text-center font-medium tabular-nums text-golf-500 last:border-r-0 ${
+                compact ? "text-[10px] leading-none" : "text-[10px] leading-tight sm:text-[11px]"
+              }`}
+            >
+              {hole}
+            </div>
+          );
+        })}
+        {Array.from({ length: 9 }, (_, i) => {
+          const hole = offset + i + 1;
+          const idx = offset + i;
+          return (
+            <div
+              key={`s-${hole}`}
+              className="min-w-0 border-r border-golf-100 last:border-r-0"
+            >
+              {editable ? (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={15}
+                  value={safe[idx] ?? ""}
+                  onChange={(e) => setHole(idx, e.target.value)}
+                  className={`w-full min-w-0 appearance-none bg-white text-center font-semibold tabular-nums text-golf-950 outline-none focus:bg-golf-50 ${
+                    compact ? "py-2 text-base" : "min-h-[44px] py-2.5 text-lg"
+                  }`}
+                  aria-label={`${playerName ? playerName + " " : ""}${hole}번 홀 스코어`}
+                />
+              ) : (
+                <div
+                  className={`flex items-center justify-center text-center font-semibold tabular-nums text-golf-950 ${
+                    compact ? "py-2 text-base" : "min-h-[44px] py-2.5 text-lg"
                   }`}
                 >
-                  {hole}
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {Array.from({ length: 9 }, (_, i) => {
-              const hole = offset + i + 1;
-              const idx = offset + i;
-              return (
-                <td
-                  key={hole}
-                  className="border border-golf-100 p-0 align-middle"
-                >
-                  {editable ? (
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={15}
-                      value={safe[idx] ?? ""}
-                      onChange={(e) => setHole(idx, e.target.value)}
-                      className={`w-full appearance-none bg-white text-center font-semibold tabular-nums text-golf-950 outline-none focus:bg-golf-50 ${
-                        compact ? "py-2 text-base" : "min-h-[44px] py-2.5 text-lg"
-                      }`}
-                      aria-label={`${playerName ? playerName + " " : ""}${hole}번 홀 스코어`}
-                    />
-                  ) : (
-                    <div
-                      className={`flex items-center justify-center text-center font-semibold tabular-nums text-golf-950 ${
-                        compact ? "py-2 text-base" : "min-h-[44px] py-2.5 text-lg"
-                      }`}
-                    >
-                      {safe[idx] ?? "–"}
-                    </div>
-                  )}
-                </td>
-              );
-            })}
-          </tr>
-        </tbody>
-      </table>
+                  {safe[idx] ?? "–"}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
