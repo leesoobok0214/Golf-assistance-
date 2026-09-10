@@ -55,29 +55,20 @@ export default function ScorecardGrid({
         </span>
       </div>
 
-      {/* CSS grid: identical 9 columns for header + scores — 10–18 never shift */}
-      <div className="grid grid-cols-9 border-t border-golf-100">
-        {Array.from({ length: 9 }, (_, i) => {
-          const hole = offset + i + 1;
-          return (
-            <div
-              key={`h-${hole}`}
-              className={`min-w-0 truncate border-b border-r border-golf-100 bg-golf-50/80 px-0.5 py-1 text-center font-medium tabular-nums text-golf-500 last:border-r-0 ${
-                compact ? "text-[10px] leading-none" : "text-[10px] leading-tight sm:text-[11px]"
-              }`}
-            >
-              {hole}
-            </div>
-          );
-        })}
+      {/* One cell = hole label + score. Equal 9 columns; no truncate so 10–18 stay visible. */}
+      <div className="grid grid-cols-9 gap-px bg-golf-100 p-px">
         {Array.from({ length: 9 }, (_, i) => {
           const hole = offset + i + 1;
           const idx = offset + i;
           return (
-            <div
-              key={`s-${hole}`}
-              className="min-w-0 border-r border-golf-100 last:border-r-0"
-            >
+            <div key={hole} className="min-w-0 bg-white">
+              <div
+                className={`flex h-6 items-center justify-center bg-golf-50/80 px-0 text-center font-medium tabular-nums leading-none text-golf-500 ${
+                  compact ? "text-[10px]" : "text-[11px]"
+                }`}
+              >
+                {hole}
+              </div>
               {editable ? (
                 <input
                   type="number"
