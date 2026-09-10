@@ -55,7 +55,7 @@ export function signedIntsFromLine(line: string): number[] {
   const re = /(?:^|[\s|:])([−\-ㅡ]?\d{1,2})(?=[\s|:]|$)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(line)) !== null) {
-    let raw = m[1].replace(/[−ㅡ]/g, "-");
+    const raw = m[1].replace(/[−ㅡ]/g, "-");
     const n = parseInt(raw, 10);
     if (!Number.isFinite(n)) continue;
     // Relative-to-par usually -4..+8; also allow par values 3–5 and totals up to 99
@@ -89,9 +89,6 @@ function looksLikeRelativeRow(nums: number[]): boolean {
   // Relative scores: mostly -3..+5, often includes 0
   if (!nine.every((n) => n >= -4 && n <= 8)) return false;
   const hasZeroOrSmall = nine.some((n) => n >= -1 && n <= 2);
-  const notAllParLike = !(
-    nine.every((n) => n >= 3 && n <= 5) && new Set(nine).size <= 3
-  );
   // Reject pure hole sequences
   if (looksLikeHoleHeader(nine)) return false;
   // Reject pure par rows
