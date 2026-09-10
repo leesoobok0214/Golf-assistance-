@@ -302,8 +302,8 @@ export function parseSmartScoreRelative(
     pickPool.find((p) => isMeName(p.name, meNames))?.name ||
     meNames[0] ||
     "나";
-  const companionNames = [
-    ...new Set(
+  const companionNames = Array.from(
+    new Set(
       playerNines
         .map((p) => p.name)
         .filter(
@@ -313,8 +313,8 @@ export function parseSmartScoreRelative(
             !/^플레이어\d*$/i.test(n) &&
             n !== meLabel
         )
-    ),
-  ];
+    )
+  );
 
   // Course name: early line with Korean / CC / GC
   let courseName = "";
