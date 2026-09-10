@@ -3,14 +3,18 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ScorecardGrid from "./ScorecardGrid";
+import { TeeColorTabs } from "./TeeChip";
 import { saveRound } from "@/lib/db";
 import {
+  DEFAULT_TEE_COLOR,
   calcTotals,
   emptyScores,
   normalizePlayers,
+  normalizeTeeColor,
   type HoleScores,
   type PlayerScores,
   type RoundInput,
+  type TeeColor,
 } from "@/lib/types";
 import { todayISO, nowTime } from "@/lib/ocr";
 
@@ -42,6 +46,9 @@ export default function RoundForm({
   const [time, setTime] = useState(initial?.time ?? nowTime());
   const [frontCourse, setFrontCourse] = useState(initial?.frontCourse ?? "");
   const [backCourse, setBackCourse] = useState(initial?.backCourse ?? "");
+  const [teeColor, setTeeColor] = useState<TeeColor>(() =>
+    normalizeTeeColor(initial?.teeColor ?? DEFAULT_TEE_COLOR)
+  );
   const [players, setPlayers] = useState<PlayerScores[]>(() => initPlayers(initial));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -89,6 +96,10 @@ export default function RoundForm({
       setError("코스 이름을 입력해 주세요.");
       return;
     }
+    if (!teeColor) {
+      setError("티 컬러를 선택해 주세요.");
+      return;
+    }
     if (filledHoles === 0) {
       setError("최소 한 홀 이상 내 스코어를 입력해 주세요.");
       return;
@@ -103,6 +114,7 @@ export default function RoundForm({
         time,
         frontCourse,
         backCourse,
+        teeColor,
         scores: normalized.scores,
         players: normalized.players,
         companions: normalized.companions,
@@ -127,7 +139,7 @@ export default function RoundForm({
 
       {showOcrHint && (
         <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 px-4 py-3.5 text-sm font-medium text-amber-950">
-          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·동반자 스코어를 꼭 확인해 주세요.
+          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·티 컬러·동반자 스코어를 꼭 확인해 주세요.
         </div>
       )}
 
@@ -188,6 +200,9 @@ export default function RoundForm({
             {filledHoles}/18 홀
           </span>
         </div>
+
+        <TeeColorTabs value={teeColor} onChange={setTeeColor} required />
+
         <div className="mb-2">
           <input
             className="field"

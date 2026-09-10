@@ -3,10 +3,12 @@
 import Dexie, { type Table } from "dexie";
 import type { GolfRound, RoundInput } from "./types";
 import {
+  DEFAULT_TEE_COLOR,
   calcTotals,
   companionsLabel,
   emptyScores,
   normalizePlayers,
+  normalizeTeeColor,
   padScores,
 } from "./types";
 
@@ -77,13 +79,24 @@ export class GolfDB extends Dexie {
           }
         });
       });
+    // v4: teeColor (white|blue|red); hydrate legacy rows with default blue
+    this.version(4)
+      .stores({
+        rounds: "++id, date, courseName, total, createdAt, isSample",
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table("rounds");
+        await table.toCollection().modify((row: GolfRound & Record<string, unknown>) => {
+          row.teeColor = normalizeTeeColor(row.teeColor);
+        });
+      });
   }
 }
 
 export const db =
   typeof window !== "undefined" ? new GolfDB() : (null as unknown as GolfDB);
 
-/** Ensure legacy / partial rows load with safe players[] + padded scores. */
+/** Ensure legacy / partial rows load with safe players[] + padded scores + teeColor. */
 export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
   if (!raw || typeof raw !== "object") {
     const scores = emptyScores();
@@ -93,6 +106,7 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
       time: "",
       frontCourse: "",
       backCourse: "",
+      teeColor: DEFAULT_TEE_COLOR,
       companions: "",
       scores,
       players: [{ name: "나", scores, isMe: true }],
@@ -117,6 +131,7 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
       time: raw.time || "",
       frontCourse: raw.frontCourse || "",
       backCourse: raw.backCourse || "",
+      teeColor: normalizeTeeColor(raw.teeColor),
       scores,
       players,
       companions,
@@ -136,6 +151,9 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
       time: raw.time || "",
       frontCourse: raw.frontCourse || "",
       backCourse: raw.backCourse || "",
+      teeColor: normalizeTeeColor(
+        (raw as GolfRound & { teeColor?: unknown }).teeColor
+      ),
       scores,
       players: [{ name: "나", scores, isMe: true }],
       companions: raw.companions || "",
@@ -205,6 +223,7 @@ export async function saveRound(input: RoundInput): Promise<number> {
       time: input.time || "",
       frontCourse: (input.frontCourse ?? "").trim(),
       backCourse: (input.backCourse ?? "").trim(),
+      teeColor: normalizeTeeColor(input.teeColor),
       companions,
       scores: padScores(scores),
       players: players.map((p) => ({

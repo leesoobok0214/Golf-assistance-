@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import GroupScorecard from "@/components/GroupScorecard";
+import TeeChip from "@/components/TeeChip";
 import ScorecardGrid from "@/components/ScorecardGrid";
 import { deleteRound, getRound } from "@/lib/db";
 import type { GolfRound } from "@/lib/types";
@@ -111,14 +112,19 @@ export default function RoundDetailPage() {
       {/* —— A) Top: MY score only —— */}
       <header className="space-y-1 pt-1">
         <div className="flex items-start justify-between gap-2">
-          <h1 className="text-2xl font-extrabold text-golf-950">
-            {round.courseName}
-          </h1>
-          {round.isSample && (
-            <span className="shrink-0 rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">
-              예시 데이터
-            </span>
-          )}
+          <div className="min-w-0 space-y-2">
+            <h1 className="text-2xl font-extrabold text-golf-950">
+              {round.courseName}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <TeeChip teeColor={round.teeColor} size="md" />
+              {round.isSample && (
+                <span className="shrink-0 rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">
+                  예시 데이터
+                </span>
+              )}
+            </div>
+          </div>
         </div>
         <p className="text-base font-semibold text-golf-700">
           {round.date}

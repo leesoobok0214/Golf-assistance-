@@ -2,10 +2,13 @@
 
 import { createWorker, type Worker } from "tesseract.js";
 import {
+  DEFAULT_TEE_COLOR,
   emptyScores,
+  normalizeTeeColor,
   padScores,
   type HoleScores,
   type PlayerScores,
+  type TeeColor,
 } from "./types";
 
 export interface OcrParseResult {
@@ -15,6 +18,8 @@ export interface OcrParseResult {
   time: string;
   frontCourse: string;
   backCourse: string;
+  /** Detected tee box color, or default when not found (editable). */
+  teeColor: TeeColor;
   /** Legacy display string — also reflected in players. */
   companions: string;
   scores: HoleScores;
@@ -295,6 +300,56 @@ function extractSingleScoreRun(raw: string): HoleScores {
   return scores;
 }
 
+
+/**
+ * Detect tee markers from OCR text (화이트/블루/레드 or W/B/R near tee keywords).
+ * Returns DEFAULT_TEE_COLOR when nothing clear is found — form stays editable.
+ */
+function extractTeeColor(raw: string): TeeColor {
+  const text = raw.replace(/\s+/g, " ");
+
+  // Explicit Korean labels (prefer longer / clearer matches)
+  if (/화이트\s*티|화이트티|White\s*Tee|WHITE\s*TEE|백티/i.test(text)) {
+    return "white";
+  }
+  if (/블루\s*티|블루티|Blue\s*Tee|BLUE\s*TEE|청티/i.test(text)) {
+    return "blue";
+  }
+  if (/레드\s*티|레드티|Red\s*Tee|RED\s*TEE|적티|레이디\s*티/i.test(text)) {
+    return "red";
+  }
+
+  // Standalone color words near tee / 티 / tee box context
+  const nearTee =
+    /(?:티|tee|tee\s*box|티박스|티잉)\s*[:：\-]?\s*(화이트|블루|레드|white|blue|red|W|B|R)\b/i;
+  const m1 = text.match(nearTee);
+  if (m1) {
+    const token = m1[1].toLowerCase();
+    if (token === "화이트" || token === "white" || token === "w") return "white";
+    if (token === "블루" || token === "blue" || token === "b") return "blue";
+    if (token === "레드" || token === "red" || token === "r") return "red";
+  }
+
+  const colorThenTee =
+    /(화이트|블루|레드|white|blue|red)\s*(?:티|tee)/i;
+  const m2 = text.match(colorThenTee);
+  if (m2) {
+    const token = m2[1].toLowerCase();
+    if (token === "화이트" || token === "white") return "white";
+    if (token === "블루" || token === "blue") return "blue";
+    if (token === "레드" || token === "red") return "red";
+  }
+
+  // Loose Korean color word anywhere (last resort — only if single color mentioned)
+  const hits: TeeColor[] = [];
+  if (/화이트|\bWHITE\b/i.test(text)) hits.push("white");
+  if (/블루|\bBLUE\b/i.test(text)) hits.push("blue");
+  if (/레드|\bRED\b/i.test(text)) hits.push("red");
+  if (hits.length === 1) return hits[0];
+
+  return DEFAULT_TEE_COLOR;
+}
+
 export function parseOcrText(raw: string): OcrParseResult {
   const lines = raw
     .split(/\r?\n/)
@@ -318,6 +373,7 @@ export function parseOcrText(raw: string): OcrParseResult {
 
   const courseName = extractCourseName(raw, lines);
   const { frontCourse, backCourse } = extractFrontBack(raw, lines);
+  const teeColor = normalizeTeeColor(extractTeeColor(raw));
 
   let playerRows = extractPlayerRows(raw, lines);
 
@@ -362,6 +418,7 @@ export function parseOcrText(raw: string): OcrParseResult {
     time,
     frontCourse,
     backCourse,
+    teeColor,
     companions,
     scores: padScores(me.scores),
     players: playerRows,

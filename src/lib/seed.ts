@@ -31,6 +31,7 @@ const SAMPLE_ROUNDS: RoundInput[] = [
     time: "07:30",
     frontCourse: "레이크",
     backCourse: "사이드",
+    teeColor: "blue",
     scores: scoresFrom([5, 4, 4, 5, 3, 4, 5, 4, 5, 4, 5, 3, 4, 5, 4, 4, 5, 4]),
     players: playersOf(
       [5, 4, 4, 5, 3, 4, 5, 4, 5, 4, 5, 3, 4, 5, 4, 4, 5, 4],
@@ -53,6 +54,7 @@ const SAMPLE_ROUNDS: RoundInput[] = [
     time: "12:40",
     frontCourse: "동코스",
     backCourse: "서코스",
+    teeColor: "white",
     scores: scoresFrom([4, 5, 4, 6, 4, 5, 4, 5, 5, 5, 4, 4, 5, 6, 4, 5, 4, 5]),
     players: playersOf(
       [4, 5, 4, 6, 4, 5, 4, 5, 5, 5, 4, 4, 5, 6, 4, 5, 4, 5],
@@ -71,6 +73,7 @@ const SAMPLE_ROUNDS: RoundInput[] = [
     time: "08:10",
     frontCourse: "오션",
     backCourse: "클래식",
+    teeColor: "red",
     scores: scoresFrom([5, 5, 4, 4, 3, 5, 4, 4, 6, 4, 5, 4, 5, 4, 3, 5, 5, 4]),
     players: playersOf(
       [5, 5, 4, 4, 3, 5, 4, 4, 6, 4, 5, 4, 5, 4, 3, 5, 5, 4],

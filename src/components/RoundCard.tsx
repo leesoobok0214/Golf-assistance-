@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import TeeChip from "./TeeChip";
 import type { GolfRound } from "@/lib/types";
 import { calcTotals, companionPlayers, companionsLabel } from "@/lib/types";
 
@@ -15,10 +16,11 @@ export default function RoundCard({ round }: { round: GolfRound }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-lg font-extrabold text-golf-950">
               {round.courseName}
             </h3>
+            <TeeChip teeColor={round.teeColor} size="sm" />
             {round.isSample && (
               <span className="shrink-0 rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-extrabold text-amber-900">
                 예시

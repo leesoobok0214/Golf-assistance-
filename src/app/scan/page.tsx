@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import RoundForm from "@/components/RoundForm";
 import { recognizeScorecard, type OcrParseResult } from "@/lib/ocr";
-import { emptyScores } from "@/lib/types";
+import { DEFAULT_TEE_COLOR, emptyScores } from "@/lib/types";
 
 type Stage = "pick" | "ocr" | "review";
 
@@ -44,6 +44,7 @@ export default function ScanPage() {
         time: "08:00",
         frontCourse: "",
         backCourse: "",
+        teeColor: DEFAULT_TEE_COLOR,
         companions: "",
         scores: emptyScores(),
         players: [{ name: "나", scores: emptyScores(), isMe: true }],
@@ -89,6 +90,7 @@ export default function ScanPage() {
             time: parsed.time,
             frontCourse: parsed.frontCourse,
             backCourse: parsed.backCourse,
+            teeColor: parsed.teeColor,
             companions: parsed.companions,
             scores: parsed.scores,
             players: parsed.players,
@@ -205,7 +207,7 @@ export default function ScanPage() {
         <p className="font-extrabold text-golf-950">OCR 안내</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-4">
           <li>클라이언트에서 Tesseract.js로 처리합니다 (kor+eng 시도, 실패 시 eng).</li>
-          <li>코스명·전반/후반·여러 명 스코어 행을 자동으로 읽어 보려 합니다.</li>
+          <li>코스명·전반/후반·티 컬러(화이트/블루/레드)·여러 명 스코어 행을 자동으로 읽어 보려 합니다.</li>
           <li>인식 후 반드시 편집 화면에서 홀 스코어를 확인해 주세요.</li>
           <li>손글씨·빛반사·기울기는 정확도가 떨어질 수 있어요.</li>
         </ul>

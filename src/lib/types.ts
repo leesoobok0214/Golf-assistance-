@@ -7,6 +7,32 @@ export type PlayerScores = {
   isMe?: boolean;
 };
 
+/**
+ * Tee box color (Smart Score style).
+ * Default: `"blue"` — most common men's regular tee in Korea.
+ * Legacy IndexedDB rows without teeColor are hydrated to `"blue"`.
+ */
+export type TeeColor = "white" | "blue" | "red";
+
+export const TEE_COLORS: readonly TeeColor[] = ["white", "blue", "red"] as const;
+
+export const DEFAULT_TEE_COLOR: TeeColor = "blue";
+
+export const TEE_COLOR_LABEL: Record<TeeColor, string> = {
+  white: "화이트",
+  blue: "블루",
+  red: "레드",
+};
+
+export function isTeeColor(v: unknown): v is TeeColor {
+  return v === "white" || v === "blue" || v === "red";
+}
+
+/** Coerce any value to a valid TeeColor; unknown/missing → default blue. */
+export function normalizeTeeColor(v: unknown): TeeColor {
+  return isTeeColor(v) ? v : DEFAULT_TEE_COLOR;
+}
+
 export interface GolfRound {
   id?: number;
   courseName: string;
@@ -14,6 +40,8 @@ export interface GolfRound {
   time: string; // HH:mm
   frontCourse: string;
   backCourse: string;
+  /** Tee box: white / blue / red. Defaults to blue for legacy rows. */
+  teeColor: TeeColor;
   /** @deprecated Prefer players[]. Kept for legacy IndexedDB rows. */
   companions?: string;
   /** User (isMe) hole scores — always kept in sync with players. */
@@ -38,6 +66,8 @@ export type RoundInput = Omit<
   ocrRaw?: string;
   /** Allow legacy companion string on input; normalized on save. */
   companions?: string;
+  /** Optional on input; saveRound / hydrate fall back to DEFAULT_TEE_COLOR. */
+  teeColor?: TeeColor;
 };
 
 export function emptyScores(): HoleScores {
