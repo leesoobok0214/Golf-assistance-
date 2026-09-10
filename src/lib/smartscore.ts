@@ -3,10 +3,11 @@
  *
  * Card layout (user-confirmed):
  * - Top: total strokes + my name (e.g. 89 / 이수복) = "me"
- * - PAR row: absolute par per hole
- * - Player rows: relative-to-par per hole (0=par, +1=bogey, -1=birdie, …)
+ * - PAR row: absolute par per hole (OCR may say PR)
+ * - Player rows: relative-to-par (0=par, +1=bogey, …)
  * - Actual strokes = par + relative
  * - Back nine may reuse hole labels 1–9
+ * - OCR often mangles 이수복 → 이복 / o+= on later rows; pair by table order
  */
 
 import {
@@ -18,7 +19,16 @@ import {
   type TeeColor,
 } from "./types";
 
-export const DEFAULT_ME_NAMES = ["이수복", "나", "저", "본인", "ME", "SELF", "MY"] as const;
+export const DEFAULT_ME_NAMES = [
+  "이수복",
+  "이복", // common OCR truncation of 이수복
+  "나",
+  "저",
+  "본인",
+  "ME",
+  "SELF",
+  "MY",
+] as const;
 
 export type SmartScoreParse = {
   matched: boolean;
@@ -35,30 +45,56 @@ export type SmartScoreParse = {
   totalHint: number | null;
 };
 
+type NamedNine = {
+  name: string;
+  relative: number[];
+  nineTotal?: number;
+  isMe: boolean;
+  block: number; // 0 = front table, 1 = back table, …
+};
+
 function cleanName(s: string): string {
   return s
-    .replace(/[|=_~`'"「」『』【】\[\]{}<>]/g, " ")
+    .replace(/[|=_~`'"「」『』【】\[\]{}<>+]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
+/** Fuzzy: 이수복, OCR 이복, substring match. */
 function isMeName(token: string, extra: string[] = []): boolean {
   const t = cleanName(token);
   if (!t) return false;
   const all = [...DEFAULT_ME_NAMES, ...extra];
-  return all.some((n) => n.toLowerCase() === t.toLowerCase() || t.includes(n));
+  if (all.some((n) => n.toLowerCase() === t.toLowerCase() || t.includes(n))) {
+    return true;
+  }
+  // 이수복 ↔ 이복 / 수복
+  if (/이.?복/.test(t) || t === "수복") return true;
+  return false;
+}
+
+function isLikelyCompanionName(n: string): boolean {
+  const t = cleanName(n);
+  if (!t || t.length < 2 || t.length > 4) return false;
+  if (isMeName(t)) return false;
+  if (/^플레이어\d*$/i.test(t)) return false;
+  if (/^(AM|PR|PAR|HOLE|T|OUT|IN)$/i.test(t)) return false;
+  if (/^\d+$/.test(t)) return false;
+  if (/클럽|골프|코스|비앙|CC|GC/i.test(t)) return false;
+  // Korean person names are usually 2–4 Hangul syllables
+  if (/^[가-힣]{2,4}$/.test(t)) return true;
+  return false;
 }
 
 /** Integers including 0 and negatives (OCR: -1, −1, ㅡ1). */
 export function signedIntsFromLine(line: string): number[] {
   const nums: number[] = [];
-  const re = /(?:^|[\s|:])([−\-ㅡ]?\d{1,2})(?=[\s|:]|$)/g;
+  const re = /(?:^|[\s|:=])([−\-ㅡ]?\d{1,2})(?=[\s|:]|$)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(line)) !== null) {
     const raw = m[1].replace(/[−ㅡ]/g, "-");
     const n = parseInt(raw, 10);
     if (!Number.isFinite(n)) continue;
-    // Relative-to-par usually -4..+8; also allow par values 3–5 and totals up to 99
     if (n < -6 || n > 99) continue;
     nums.push(n);
   }
@@ -76,7 +112,6 @@ function looksLikeHoleHeader(nums: number[]): boolean {
 function looksLikeParRow(nums: number[]): boolean {
   if (nums.length < 9) return false;
   const nine = nums.slice(0, 9);
-  // Typical golf pars 3–5; allow occasional 6
   const ok = nine.every((n) => n >= 3 && n <= 6);
   if (!ok) return false;
   const avg = nine.reduce((a, b) => a + b, 0) / nine.length;
@@ -86,56 +121,87 @@ function looksLikeParRow(nums: number[]): boolean {
 function looksLikeRelativeRow(nums: number[]): boolean {
   if (nums.length < 9) return false;
   const nine = nums.slice(0, 9);
-  // Relative scores: mostly -3..+5, often includes 0
   if (!nine.every((n) => n >= -4 && n <= 8)) return false;
-  const hasZeroOrSmall = nine.some((n) => n >= -1 && n <= 2);
-  // Reject pure hole sequences
   if (looksLikeHoleHeader(nine)) return false;
-  // Reject pure par rows
-  if (looksLikeParRow(nine) && !nine.some((n) => n === 0 || n === 1 || n === 2)) {
-    return false;
-  }
-  // If values look like absolute strokes (all 3–8, no zeros), treat as absolute elsewhere
+  if (looksLikeParRow(nine) && !nine.some((n) => n <= 2)) return false;
   const allStrokeAbs = nine.every((n) => n >= 3 && n <= 10);
   const hasZero = nine.some((n) => n === 0);
   const hasNeg = nine.some((n) => n < 0);
   if (allStrokeAbs && !hasZero && !hasNeg) return false;
-  return hasZeroOrSmall || hasNeg || hasZero;
+  return hasZero || hasNeg || nine.some((n) => n >= -1 && n <= 2);
 }
 
-type NamedNine = {
-  name: string;
-  relative: number[];
-  nineTotal?: number;
-  isMe: boolean;
-};
-
-function stripTrailingTotal(nums: number[]): { nine: number[]; total?: number } {
-  if (nums.length >= 10) {
-    const maybeT = nums[9];
-    const nine = nums.slice(0, 9);
-    // T is usually 30–60 for nine holes
-    if (maybeT >= 25 && maybeT <= 70) {
+/**
+ * Prefer "... 9 relatives + T(25–70)".
+ * Handles OCR junk prefix like "o+=2 0 1 1 2 0 2 0 2 0 44".
+ */
+export function extractNineAndTotal(
+  nums: number[]
+): { nine: number[]; total?: number } | null {
+  for (let end = nums.length; end >= 10; end--) {
+    const maybeT = nums[end - 1];
+    if (maybeT < 25 || maybeT > 70) continue;
+    const nine = nums.slice(end - 10, end - 1);
+    if (nine.length === 9 && looksLikeRelativeRow(nine)) {
       return { nine, total: maybeT };
     }
   }
-  return { nine: nums.slice(0, 9) };
+  for (let start = 0; start + 9 <= nums.length; start++) {
+    const nine = nums.slice(start, start + 9);
+    if (looksLikeRelativeRow(nine)) {
+      const after = nums[start + 9];
+      if (after != null && after >= 25 && after <= 70) {
+        return { nine, total: after };
+      }
+      return { nine };
+    }
+  }
+  return null;
 }
 
 function nameFromLine(line: string): string {
   const withoutNums = line
     .replace(/[−\-ㅡ]?\d+/g, " ")
-    .replace(/[|:：,，]/g, " ")
-    .replace(/\b(HOLE|PAR|HDCP|TOTAL|합계|OUT|IN|T)\b/gi, " ")
+    .replace(/[|:：,，=+]/g, " ")
+    .replace(/\b(HOLE|PAR|PR|HDCP|TOTAL|합계|OUT|IN|T)\b/gi, " ")
     .trim();
   const token = withoutNums.split(/\s+/)[0] || "";
   return cleanName(token);
 }
 
-/**
- * Try to parse SmartScore relative-to-par layout from OCR text.
- * Returns matched:false if not that format.
- */
+function extractTotalHint(raw: string, lines: string[]): number | null {
+  let totalHint: number | null = null;
+  const near = raw.match(
+    /(?:^|\n)\s*(\d{2,3})\s*[\s\S]{0,40}?(이수복|이복|나|저|본인)/m
+  );
+  if (near) {
+    const n = parseInt(near[1], 10);
+    if (n >= 60 && n <= 120) totalHint = n;
+  }
+  for (const line of lines.slice(0, 10)) {
+    const m = line.match(/\b(\d{2,3})\b/);
+    if (m && /이수복|이복/.test(line + (lines[lines.indexOf(line) + 1] || ""))) {
+      const n = parseInt(m[1], 10);
+      if (n >= 60 && n <= 120) totalHint = n;
+    }
+    const alone = line.match(/^(\d{2,3})$/);
+    if (alone) {
+      const n = parseInt(alone[1], 10);
+      if (n >= 60 && n <= 120) totalHint = n;
+    }
+  }
+  // "89" on same line as course
+  const courseLine = lines.find((l) => /로제|CC|GC|클럽|골프/.test(l));
+  if (courseLine) {
+    const m = courseLine.match(/\b(\d{2,3})\b/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n >= 60 && n <= 120) totalHint = n;
+    }
+  }
+  return totalHint;
+}
+
 export function parseSmartScoreRelative(
   raw: string,
   opts?: { meNames?: string[]; fallbackDate?: string; fallbackTime?: string }
@@ -161,9 +227,9 @@ export function parseSmartScoreRelative(
     totalHint: null,
   };
 
-  // Collect PAR nines and relative player nines in document order
   const parNines: number[][] = [];
   const playerNines: NamedNine[] = [];
+  let block = -1;
 
   for (const line of lines) {
     if (/^(hole|홀|no\.?|#)\b/i.test(line)) continue;
@@ -172,151 +238,137 @@ export function parseSmartScoreRelative(
     if (looksLikeHoleHeader(nums)) continue;
 
     const name = nameFromLine(line);
-    const isParLabel = /\bpar\b/i.test(line) || /^파\b/.test(line);
+    const isParLabel = /\bpar\b/i.test(line) || /\bpr\b/i.test(line) || /^파\b/.test(line);
 
-    if (isParLabel || (looksLikeParRow(nums) && !name)) {
-      const { nine } = stripTrailingTotal(nums);
-      if (looksLikeParRow(nine)) parNines.push(nine);
+    // PAR / PR row starts a new nine-block
+    if (isParLabel || (looksLikeParRow(nums.slice(0, 9)) && !name)) {
+      const nine = nums.slice(0, 9);
+      if (looksLikeParRow(nine)) {
+        parNines.push(nine);
+        block = parNines.length - 1;
+      }
       continue;
     }
 
-    if (looksLikeRelativeRow(nums) || (name && nums.length >= 9)) {
-      const { nine, total } = stripTrailingTotal(nums);
-      // Skip if this is actually another PAR (labeled elsewhere)
-      if (looksLikeParRow(nine) && !name && !nine.includes(0)) {
-        parNines.push(nine);
-        continue;
-      }
-      if (!looksLikeRelativeRow(nine) && !name) continue;
-      // Absolute stroke rows (no zero/neg) skipped here
-      if (!looksLikeRelativeRow(nine)) continue;
+    const extracted = extractNineAndTotal(nums);
+    if (!extracted) continue;
+    if (!looksLikeRelativeRow(extracted.nine)) continue;
 
-      playerNines.push({
-        name: name || `플레이어${playerNines.length + 1}`,
-        relative: nine,
-        nineTotal: total,
-        isMe: isMeName(name, meNames),
-      });
+    // Unlabeled flat par-like absolute? skip
+    if (looksLikeParRow(extracted.nine) && !name && !extracted.nine.includes(0)) {
+      continue;
     }
+
+    if (block < 0) block = 0;
+
+    playerNines.push({
+      name: name || `플레이어${playerNines.length + 1}`,
+      relative: extracted.nine,
+      nineTotal: extracted.total,
+      isMe: isMeName(name, meNames),
+      block,
+    });
   }
 
   if (parNines.length === 0 || playerNines.length === 0) {
     return empty;
   }
 
-  // Need at least one full 9 relative for me; prefer 2 pars + my 2 nines
-  const par18: number[] = [];
-  if (parNines.length >= 2) {
-    par18.push(...parNines[0], ...parNines[1]);
-  } else {
-    par18.push(...parNines[0], ...Array(9).fill(4));
-  }
+  const totalHint = extractTotalHint(raw, lines);
 
-  // Pick me: explicit me name, else 이수복/extra, else first named Korean, else first
-  let meRows = playerNines.filter((p) => p.isMe);
-  if (!meRows.length) {
-    meRows = playerNines.filter((p) => isMeName(p.name, meNames));
-  }
-  if (!meRows.length && meNames.length) {
-    meRows = playerNines.filter((p) =>
-      meNames.some((n) => p.name.includes(n))
-    );
-  }
-  // Prefer rows whose nineTotal matches top total hint halves when possible
-  const pickPool = meRows.length ? meRows : [playerNines[0]];
+  const frontPlayers = playerNines.filter((p) => p.block === 0);
+  const backPlayers = playerNines.filter((p) => p.block >= 1);
 
-  // Group into front/back: first me nine + second me nine, else first two from pickPool
-  let rel18: number[] = [];
-  if (
-    pickPool.length >= 2 &&
-    pickPool[0].relative.length === 9 &&
-    pickPool[1].relative.length === 9
-  ) {
-    rel18 = [...pickPool[0].relative, ...pickPool[1].relative];
-  } else if (pickPool[0].relative.length === 9) {
-    // Try find another nine for same name later in list
-    const same = playerNines.filter(
-      (p) => p.name === pickPool[0].name || (pickPool[0].isMe && p.isMe)
-    );
-    if (same.length >= 2) {
-      rel18 = [...same[0].relative, ...same[1].relative];
+  // Me index in front table
+  let meFrontIdx = frontPlayers.findIndex((p) => p.isMe || isMeName(p.name, meNames));
+  if (meFrontIdx < 0 && frontPlayers.length) {
+    // Prefer row whose nineTotal is closest to totalHint/2 or ~40–50
+    if (totalHint) {
+      let best = 0;
+      let bestDiff = Infinity;
+      frontPlayers.forEach((p, i) => {
+        if (p.nineTotal == null) return;
+        const diff = Math.abs(p.nineTotal - totalHint / 2);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = i;
+        }
+      });
+      meFrontIdx = best;
     } else {
-      rel18 = [...pickPool[0].relative, ...Array(9).fill(0)];
+      meFrontIdx = 0;
     }
-  } else {
-    return empty;
   }
+
+  const meFront = meFrontIdx >= 0 ? frontPlayers[meFrontIdx] : null;
+
+  // Back nine: same slot as front (player order), else match by nineTotal ≈ totalHint - frontT
+  let meBack: NamedNine | null = null;
+  if (backPlayers.length && meFront) {
+    if (meFrontIdx < backPlayers.length) {
+      meBack = backPlayers[meFrontIdx];
+    }
+    if (totalHint && meFront.nineTotal != null) {
+      const need = totalHint - meFront.nineTotal;
+      const byTotal = backPlayers.find(
+        (p) => p.nineTotal != null && Math.abs(p.nineTotal - need) <= 1
+      );
+      if (byTotal) meBack = byTotal;
+    }
+    // If slot 0 back row is garbage name but totals match, keep it
+    if (!meBack && backPlayers[0]) meBack = backPlayers[0];
+  }
+
+  // Never invent a missing nine as all-par (zeros)
+  const relFront = meFront?.relative ?? null;
+  const relBack = meBack?.relative ?? null;
+  if (!relFront) return empty;
+
+  const parFront = parNines[0];
+  const parBack = parNines[1] ?? null;
 
   const scores = emptyScores();
-  for (let i = 0; i < 18; i++) {
-    const par = par18[i] ?? 4;
-    const rel = rel18[i] ?? 0;
-    const stroke = par + rel;
+  for (let i = 0; i < 9; i++) {
+    const stroke = (parFront[i] ?? 4) + relFront[i];
     if (stroke >= 1 && stroke <= 15) scores[i] = stroke;
   }
-
-  // Top total hint e.g. "89" near my name
-  let totalHint: number | null = null;
-  const totalNearMe = raw.match(
-    /(?:^|\n)\s*(\d{2,3})\s*(?:\n|\s)+(이수복|나|저|본인)/m
-  ) || raw.match(/(이수복|나|저|본인)\s*[:：]?\s*(\d{2,3})/);
-  if (totalNearMe) {
-    const n = parseInt(totalNearMe[1].length <= 3 && /^\d+$/.test(totalNearMe[1]) ? totalNearMe[1] : totalNearMe[2], 10);
-    if (n >= 60 && n <= 120) totalHint = n;
+  if (relBack && parBack) {
+    for (let i = 0; i < 9; i++) {
+      const stroke = (parBack[i] ?? 4) + relBack[i];
+      if (stroke >= 1 && stroke <= 15) scores[9 + i] = stroke;
+    }
   }
-  // Also: lone big number before name in first lines
-  for (const line of lines.slice(0, 8)) {
-    const m = line.match(/^(\d{2,3})$/);
-    if (m) {
-      const n = parseInt(m[1], 10);
-      if (n >= 60 && n <= 120) totalHint = n;
+  // If we have relBack but only one PAR, still apply using front par? No — wait for real back PAR.
+  // If relBack exists and parBack missing, use typical? Better leave empty than wrong all-4s.
+  // Exception: if only one PAR row OCR'd but two relative blocks, reuse is wrong.
+  if (relBack && !parBack && parNines.length === 1) {
+    // Still better to leave back empty than fake pars
+  }
+
+  // Also pull companion names from header lines (before HOLE)
+  const headerCompanions: string[] = [];
+  for (const line of lines) {
+    if (/\b(HOLE|PAR|PR)\b/i.test(line)) break;
+    const names = line.match(/[가-힣]{2,4}/g) || [];
+    for (const n of names) {
+      if (isLikelyCompanionName(n) && !isMeName(n, meNames)) headerCompanions.push(n);
     }
   }
 
-  // If we have totalHint and only front filled wrong, trust computed sum; optional adjust skipped
-  const sum = scores.reduce<number>((a, v) => a + (v ?? 0), 0);
-  if (totalHint && sum > 0 && Math.abs(sum - totalHint) > 6) {
-    // Likely mis-ordered nines — try swapping me row pairs if 2+ rows
-    const sameName = playerNines.filter(
-      (p) => isMeName(p.name, meNames) || p.name === pickPool[0].name
-    );
-    if (sameName.length >= 2) {
-      const alt = emptyScores();
-      const altRel = [...sameName[1].relative, ...sameName[0].relative];
-      for (let i = 0; i < 18; i++) {
-        const stroke = (par18[i] ?? 4) + (altRel[i] ?? 0);
-        if (stroke >= 1 && stroke <= 15) alt[i] = stroke;
-      }
-      const altSum = alt.reduce<number>((a, v) => a + (v ?? 0), 0);
-      if (Math.abs(altSum - totalHint) < Math.abs(sum - totalHint)) {
-        for (let i = 0; i < 18; i++) scores[i] = alt[i];
-      }
-    }
-  }
-
-  // Companions: other named players (unique names)
-  const meLabel =
-    pickPool.find((p) => isMeName(p.name, meNames))?.name ||
-    meNames[0] ||
-    "나";
-  const companionNames = Array.from(
+    const companionNames = Array.from(
     new Set(
-      playerNines
-        .map((p) => p.name)
-        .filter(
-          (n) =>
-            n &&
-            !isMeName(n, meNames) &&
-            !/^플레이어\d*$/i.test(n) &&
-            n !== meLabel
-        )
+      [
+        ...headerCompanions,
+        ...[...frontPlayers, ...backPlayers]
+          .map((p) => p.name)
+          .filter((n) => isLikelyCompanionName(n) && !isMeName(n, meNames)),
+      ]
     )
   );
 
-  // Course name: early line with Korean / CC / GC
   let courseName = "";
   for (const line of lines.slice(0, 10)) {
-    const c = cleanName(line);
+    const c = cleanName(line).replace(/\s*\d{2,3}\s*$/, "").trim();
     if (!c || /^\d+$/.test(c)) continue;
     if (/CC|GC|클럽|골프|로제|비앙|COURSE/i.test(c) || /^[가-힣]{2,12}$/.test(c)) {
       if (!isMeName(c, meNames) && !companionNames.includes(c)) {
@@ -353,13 +405,12 @@ export function parseSmartScoreRelative(
     teeColor: DEFAULT_TEE_COLOR,
     companions: companionNames.join(", "),
     scores: finalScores,
-    players: [{ name: meLabel === "이수복" ? "나" : meLabel || "나", scores: finalScores, isMe: true }],
-    meName: meLabel || "나",
+    players: [{ name: "나", scores: finalScores, isMe: true }],
+    meName: "나",
     totalHint,
   };
 }
 
-/** Build absolute strokes from par + relative arrays (length 9 or 18). */
 export function strokesFromParRelative(
   pars: number[],
   relatives: number[]
