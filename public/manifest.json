@@ -1,0 +1,25 @@
+{
+  "name": "골프비서",
+  "short_name": "골프비서",
+  "description": "스코어카드 스캔과 라운드 기록을 한곳에서",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3faf4",
+  "theme_color": "#348442",
+  "orientation": "portrait-primary",
+  "lang": "ko-KR",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
