@@ -6,9 +6,12 @@ import ScorecardGrid from "./ScorecardGrid";
 import { saveRound } from "@/lib/db";
 import {
   DEFAULT_TEE_COLOR,
+  emptyPars,
   emptyScores,
   normalizePlayers,
+  padPars,
   padScores,
+  type HolePars,
   type HoleScores,
   type RoundInput,
 } from "@/lib/types";
@@ -42,6 +45,9 @@ export default function RoundForm({
   const [companions, setCompanions] = useState(seeded.companions);
   const [scores, setScores] = useState<HoleScores>(() =>
     padScores(seeded.scores)
+  );
+  const [pars, setPars] = useState<HolePars>(() =>
+    padPars(initial?.pars ?? emptyPars())
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -79,6 +85,7 @@ export default function RoundForm({
         // Persist default only — tee UI removed
         teeColor: initial?.teeColor ?? DEFAULT_TEE_COLOR,
         scores: normalized.scores,
+        pars: padPars(pars),
         players: normalized.players,
         companions: normalized.companions,
         isSample: false,
@@ -176,8 +183,10 @@ export default function RoundForm({
 
         <ScorecardGrid
           scores={scores.length ? scores : emptyScores()}
+          pars={pars}
           editable
           onChange={setScores}
+          onParsChange={setPars}
           frontLabel={frontCourse || "전반"}
           backLabel={backCourse || "후반"}
         />

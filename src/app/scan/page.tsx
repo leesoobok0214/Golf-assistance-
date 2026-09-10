@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import RoundForm from "@/components/RoundForm";
 import { recognizeScorecard, type OcrParseResult } from "@/lib/ocr";
-import { DEFAULT_TEE_COLOR, emptyScores } from "@/lib/types";
+import { DEFAULT_TEE_COLOR, emptyPars, emptyScores } from "@/lib/types";
 
 type Stage = "pick" | "ocr" | "review";
 
@@ -47,6 +47,7 @@ export default function ScanPage() {
         teeColor: DEFAULT_TEE_COLOR,
         companions: "",
         scores: emptyScores(),
+        pars: emptyPars(),
         players: [{ name: "나", scores: emptyScores(), isMe: true }],
       });
       setStage("review");
@@ -93,6 +94,7 @@ export default function ScanPage() {
             teeColor: parsed.teeColor,
             companions: parsed.companions,
             scores: parsed.scores,
+            pars: parsed.pars,
             players: parsed.players,
             ocrRaw: parsed.raw,
           }}

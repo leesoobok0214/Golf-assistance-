@@ -12,8 +12,11 @@
 
 import {
   DEFAULT_TEE_COLOR,
+  emptyPars,
   emptyScores,
+  padPars,
   padScores,
+  type HolePars,
   type HoleScores,
   type PlayerScores,
   type TeeColor,
@@ -40,6 +43,7 @@ export type SmartScoreParse = {
   teeColor: TeeColor;
   companions: string;
   scores: HoleScores;
+  pars: HolePars;
   players: PlayerScores[];
   meName: string;
   totalHint: number | null;
@@ -222,6 +226,7 @@ export function parseSmartScoreRelative(
     teeColor: DEFAULT_TEE_COLOR,
     companions: "",
     scores: emptyScores(),
+    pars: emptyPars(),
     players: [{ name: "나", scores: emptyScores(), isMe: true }],
     meName: "나",
     totalHint: null,
@@ -395,6 +400,19 @@ export function parseSmartScoreRelative(
   const filled = finalScores.filter((s) => s != null).length;
   if (filled < 9) return empty;
 
+  // 18 pars from two PAR nines (pad nulls when missing)
+  const parsOut = emptyPars();
+  for (let i = 0; i < 9; i++) {
+    const p = parFront?.[i];
+    parsOut[i] = p != null && p >= 3 && p <= 6 ? p : null;
+  }
+  if (parBack) {
+    for (let i = 0; i < 9; i++) {
+      const p = parBack[i];
+      parsOut[9 + i] = p != null && p >= 3 && p <= 6 ? p : null;
+    }
+  }
+
   return {
     matched: true,
     courseName,
@@ -405,6 +423,7 @@ export function parseSmartScoreRelative(
     teeColor: DEFAULT_TEE_COLOR,
     companions: companionNames.join(", "),
     scores: finalScores,
+    pars: padPars(parsOut),
     players: [{ name: "나", scores: finalScores, isMe: true }],
     meName: "나",
     totalHint,

@@ -5,9 +5,11 @@ import type { GolfRound, RoundInput } from "./types";
 import {
   DEFAULT_TEE_COLOR,
   calcTotals,
+  emptyPars,
   emptyScores,
   normalizePlayers,
   normalizeTeeColor,
+  padPars,
   padScores,
 } from "./types";
 
@@ -108,6 +110,7 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
       teeColor: DEFAULT_TEE_COLOR,
       companions: "",
       scores,
+      pars: emptyPars(),
       players: [{ name: "나", scores, isMe: true }],
       outTotal: 0,
       inTotal: 0,
@@ -132,6 +135,7 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
       backCourse: raw.backCourse || "",
       teeColor: normalizeTeeColor(raw.teeColor),
       scores,
+      pars: padPars(raw.pars),
       players,
       companions,
       outTotal: raw.outTotal || totals.outTotal,
@@ -154,6 +158,7 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
         (raw as GolfRound & { teeColor?: unknown }).teeColor
       ),
       scores,
+      pars: padPars((raw as GolfRound).pars),
       players: [{ name: "나", scores, isMe: true }],
       companions: typeof raw.companions === "string" ? raw.companions : "",
       outTotal: raw.outTotal || totals.outTotal,
@@ -225,6 +230,7 @@ export async function saveRound(input: RoundInput): Promise<number> {
       teeColor: normalizeTeeColor(input.teeColor),
       companions,
       scores: padScores(scores),
+      pars: padPars(input.pars),
       players: [
         {
           name: (players[0]?.name || "나").trim() || "나",

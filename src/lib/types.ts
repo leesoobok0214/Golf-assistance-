@@ -1,5 +1,8 @@
 export type HoleScores = (number | null)[];
 
+/** Per-hole par values (3/4/5 typically). null = unknown. */
+export type HolePars = (number | null)[];
+
 /** Per-player 18-hole scores. Kept for IndexedDB compatibility; hydrate keeps a single me-player. */
 export type PlayerScores = {
   name: string;
@@ -46,6 +49,8 @@ export interface GolfRound {
   companions?: string;
   /** My hole scores. */
   scores: HoleScores;
+  /** Per-hole par (optional; SmartScore OCR / manual). */
+  pars?: HolePars;
   /** Compatibility: always a single me-player after hydrate/save. */
   players: PlayerScores[];
   total: number;
@@ -67,6 +72,8 @@ export type RoundInput = Omit<
   companions?: string;
   /** Optional on input; saveRound / hydrate fall back to DEFAULT_TEE_COLOR. */
   teeColor?: TeeColor;
+  /** Optional per-hole par; hydrate defaults to emptyPars. */
+  pars?: HolePars;
 };
 
 export function emptyScores(): HoleScores {
@@ -77,6 +84,51 @@ export function padScores(scores: HoleScores | undefined | null): HoleScores {
   const next = [...(scores ?? [])];
   while (next.length < 18) next.push(null);
   return next.slice(0, 18);
+}
+
+export function emptyPars(): HolePars {
+  return Array.from({ length: 18 }, () => null);
+}
+
+export function padPars(pars: HolePars | undefined | null): HolePars {
+  const next = [...(pars ?? [])];
+  while (next.length < 18) next.push(null);
+  return next.slice(0, 18).map((p) => {
+    if (p == null || Number.isNaN(p)) return null;
+    const n = Math.round(Number(p));
+    if (!Number.isFinite(n) || n < 3 || n > 6) return null;
+    return n;
+  });
+}
+
+/** Absolute strokes − par → relative (0=par, −1=birdie, +1=bogey). */
+export function relativeToPar(
+  stroke: number | null | undefined,
+  par: number | null | undefined
+): number | null {
+  if (stroke == null || par == null) return null;
+  if (!Number.isFinite(stroke) || !Number.isFinite(par)) return null;
+  return stroke - par;
+}
+
+/** Par + relative → absolute strokes (clamped 1–15). */
+export function strokeFromRelative(
+  par: number | null | undefined,
+  rel: number | null | undefined
+): number | null {
+  if (par == null || rel == null) return null;
+  if (!Number.isFinite(par) || !Number.isFinite(rel)) return null;
+  const stroke = par + rel;
+  if (!Number.isFinite(stroke)) return null;
+  return Math.min(15, Math.max(1, Math.round(stroke)));
+}
+
+/** Display relative: "0", "-1", "+2", or "–" when unknown. */
+export function formatRelative(rel: number | null | undefined): string {
+  if (rel == null || Number.isNaN(rel)) return "–";
+  if (rel === 0) return "0";
+  if (rel > 0) return `+${rel}`;
+  return String(rel);
 }
 
 /** Tolerates undefined/null/short arrays — always pads first. */

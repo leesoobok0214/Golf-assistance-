@@ -3,8 +3,10 @@
 import { createWorker, type Worker } from "tesseract.js";
 import {
   DEFAULT_TEE_COLOR,
+  emptyPars,
   emptyScores,
   padScores,
+  type HolePars,
   type HoleScores,
   type PlayerScores,
   type TeeColor,
@@ -24,6 +26,8 @@ export interface OcrParseResult {
   /** Optional companion names only (comma-separated). */
   companions: string;
   scores: HoleScores;
+  /** Per-hole par when SmartScore matched; else emptyPars. */
+  pars: HolePars;
   /** Always a single me-player after parse. */
   players: PlayerScores[];
 }
@@ -486,6 +490,7 @@ export function parseOcrText(raw: string): OcrParseResult {
       teeColor: smart.teeColor,
       companions: smart.companions,
       scores: smart.scores,
+      pars: smart.pars,
       players: smart.players,
     };
   }
@@ -557,6 +562,7 @@ export function parseOcrText(raw: string): OcrParseResult {
     teeColor: DEFAULT_TEE_COLOR,
     companions,
     scores: padScores(scores),
+    pars: emptyPars(),
     players,
   };
 }

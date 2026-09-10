@@ -134,6 +134,7 @@ export default function RoundDetailPage() {
           <h2 className="text-base font-semibold text-golf-900">내 스코어</h2>
           <ScorecardGrid
             scores={meScores}
+            pars={round.pars}
             frontLabel={round.frontCourse || "전반"}
             backLabel={round.backCourse || "후반"}
           />
