@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #eef6ef;
-  --foreground: #14261a;
-  --golf-primary: #246b34;
+  --background: #f4f7f4;
+  --foreground: #1a2e1f;
+  --golf-primary: #2c6937;
 }
 
 html,
@@ -29,7 +29,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   font-size: 16px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 * {
@@ -38,15 +38,15 @@ body {
 
 @layer components {
   .field {
-    @apply w-full rounded-xl border-2 border-golf-300 bg-white px-3.5 py-3.5 text-base font-medium text-golf-950 outline-none transition placeholder:text-golf-400 focus:border-golf-600 focus:ring-2 focus:ring-golf-300;
+    @apply w-full rounded-xl border border-golf-200 bg-white px-3.5 py-3 text-base font-normal text-golf-950 outline-none transition placeholder:text-golf-400 focus:border-golf-500 focus:ring-2 focus:ring-golf-100;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-golf-700 px-5 py-4 text-base font-extrabold text-white shadow-soft transition active:scale-[0.98] hover:bg-golf-800;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl bg-golf-700 px-5 py-3.5 text-base font-semibold text-white shadow-soft transition active:scale-[0.98] hover:bg-golf-800;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-golf-400 bg-white px-5 py-3.5 text-sm font-bold text-golf-800 transition active:scale-[0.98] hover:bg-golf-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl border border-golf-300 bg-white px-5 py-3 text-sm font-medium text-golf-800 transition active:scale-[0.98] hover:bg-golf-50;
   }
 
   .page {
@@ -58,7 +58,7 @@ body {
   }
 
   .card-surface {
-    @apply rounded-2xl border-2 border-golf-200 bg-white shadow-card;
+    @apply rounded-2xl border border-golf-200 bg-white shadow-card;
   }
 }
 

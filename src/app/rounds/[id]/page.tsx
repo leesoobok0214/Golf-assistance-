@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ScorecardGrid from "@/components/ScorecardGrid";
-import TeeChip from "@/components/TeeChip";
 import { deleteRound, getRound } from "@/lib/db";
 import type { GolfRound } from "@/lib/types";
 import { calcTotals, padScores } from "@/lib/types";
@@ -52,18 +51,14 @@ export default function RoundDetailPage() {
       await deleteRound(round.id);
       router.push("/history");
     } catch (err) {
-      alert(
-        err instanceof Error ? err.message : "삭제에 실패했습니다."
-      );
+      alert(err instanceof Error ? err.message : "삭제에 실패했습니다.");
     }
   };
 
   if (loading) {
     return (
       <main className="page">
-        <p className="py-16 text-center text-base font-medium text-golf-600">
-          불러오는 중…
-        </p>
+        <p className="py-16 text-center text-base text-golf-600">불러오는 중…</p>
       </main>
     );
   }
@@ -71,7 +66,7 @@ export default function RoundDetailPage() {
   if (error) {
     return (
       <main className="page space-y-4">
-        <p className="rounded-2xl border-2 border-red-300 bg-red-50 px-4 py-6 text-center text-base font-semibold text-red-700">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-center text-base font-medium text-red-700">
           {error}
         </p>
         <Link href="/history" className="btn-secondary block text-center">
@@ -84,7 +79,7 @@ export default function RoundDetailPage() {
   if (!round) {
     return (
       <main className="page space-y-4">
-        <p className="py-10 text-center text-base font-medium text-golf-700">
+        <p className="py-10 text-center text-base text-golf-700">
           라운드를 찾을 수 없어요
         </p>
         <Link href="/history" className="btn-secondary block text-center">
@@ -104,45 +99,45 @@ export default function RoundDetailPage() {
   return (
     <ErrorBoundary label="round-detail">
       <main className="page space-y-5">
-        <header className="space-y-2 pt-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-golf-950">
+        <header className="space-y-1 pt-1">
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-semibold text-golf-950">
               {round.courseName || "무명 코스"}
             </h1>
-            <TeeChip teeColor={round.teeColor} size="md" />
             {round.isSample && (
-              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-extrabold text-amber-900">
-                예시
+              <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-800">
+                예시 데이터
               </span>
             )}
           </div>
-          <p className="text-base font-semibold text-golf-700">
+          <p className="text-base text-golf-600">
             {round.date || ""}
             {round.time ? ` · ${round.time}` : ""}
           </p>
           {(round.frontCourse || round.backCourse) && (
-            <p className="text-sm font-medium text-golf-600">
+            <p className="text-sm text-golf-500">
               {[round.frontCourse, round.backCourse].filter(Boolean).join(" / ")}
             </p>
           )}
           {companionNames && (
-            <p className="text-sm font-medium text-golf-800">
-              동반 {companionNames}
-            </p>
+            <p className="text-sm text-golf-600">동반 {companionNames}</p>
           )}
         </header>
 
         <section className="grid grid-cols-3 gap-2">
-          <SummaryTile label="OUT" value={outVal || "–"} />
-          <SummaryTile label="IN" value={inVal || "–"} />
-          <SummaryTile label="TOTAL" value={totalVal || "–"} emphasize />
+          <MiniStat label="OUT" value={outVal} />
+          <MiniStat label="IN" value={inVal} />
+          <MiniStat label="TOTAL" value={totalVal} highlight />
         </section>
 
-        <ScorecardGrid
-          scores={meScores}
-          frontLabel={round.frontCourse || "전반"}
-          backLabel={round.backCourse || "후반"}
-        />
+        <section className="space-y-2">
+          <h2 className="text-base font-semibold text-golf-900">내 스코어</h2>
+          <ScorecardGrid
+            scores={meScores}
+            frontLabel={round.frontCourse || "전반"}
+            backLabel={round.backCourse || "후반"}
+          />
+        </section>
 
         <div className="flex gap-2">
           <Link href="/history" className="btn-secondary flex-1 text-center">
@@ -151,7 +146,7 @@ export default function RoundDetailPage() {
           <button
             type="button"
             onClick={onDelete}
-            className="btn-secondary flex-1 !border-red-400 !text-red-700"
+            className="btn-secondary flex-1 !border-red-300 !text-red-700"
           >
             삭제
           </button>
@@ -161,31 +156,31 @@ export default function RoundDetailPage() {
   );
 }
 
-function SummaryTile({
+function MiniStat({
   label,
   value,
-  emphasize,
+  highlight,
 }: {
   label: string;
-  value: string | number;
-  emphasize?: boolean;
+  value: number;
+  highlight?: boolean;
 }) {
   return (
     <div
-      className={`rounded-2xl border-2 px-3 py-3 text-center shadow-card ${
-        emphasize
-          ? "border-golf-700 bg-golf-800 text-white"
-          : "border-golf-200 bg-white text-golf-950"
+      className={`rounded-2xl border p-3 text-center shadow-card ${
+        highlight
+          ? "border-golf-600 bg-golf-700 text-white"
+          : "border-golf-200 bg-white"
       }`}
     >
       <p
-        className={`text-xs font-bold ${
-          emphasize ? "text-white/80" : "text-golf-600"
+        className={`text-xs font-medium ${
+          highlight ? "text-golf-100" : "text-golf-500"
         }`}
       >
         {label}
       </p>
-      <p className="mt-1 text-2xl font-extrabold tabular-nums">{value}</p>
+      <p className="text-2xl font-bold tabular-nums">{value || "–"}</p>
     </div>
   );
 }

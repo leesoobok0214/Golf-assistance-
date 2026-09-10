@@ -21,8 +21,8 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.error) {
       return (
         <main className="page space-y-4">
-          <div className="rounded-2xl border-2 border-red-300 bg-red-50 px-4 py-6 text-center">
-            <p className="text-lg font-extrabold text-red-800">화면을 표시하지 못했어요</p>
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-6 text-center">
+            <p className="text-lg font-semibold text-red-800">화면을 표시하지 못했어요</p>
             <p className="mt-2 break-all text-sm font-medium text-red-700">
               {this.state.error.message || "client-side exception"}
             </p>

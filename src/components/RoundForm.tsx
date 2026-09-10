@@ -3,17 +3,14 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import ScorecardGrid from "./ScorecardGrid";
-import { TeeColorTabs } from "./TeeChip";
 import { saveRound } from "@/lib/db";
 import {
   DEFAULT_TEE_COLOR,
   emptyScores,
   normalizePlayers,
-  normalizeTeeColor,
   padScores,
   type HoleScores,
   type RoundInput,
-  type TeeColor,
 } from "@/lib/types";
 import { todayISO, nowTime } from "@/lib/ocr";
 
@@ -42,9 +39,6 @@ export default function RoundForm({
   const [time, setTime] = useState(initial?.time ?? nowTime());
   const [frontCourse, setFrontCourse] = useState(initial?.frontCourse ?? "");
   const [backCourse, setBackCourse] = useState(initial?.backCourse ?? "");
-  const [teeColor, setTeeColor] = useState<TeeColor>(() =>
-    normalizeTeeColor(initial?.teeColor ?? DEFAULT_TEE_COLOR)
-  );
   const [companions, setCompanions] = useState(seeded.companions);
   const [scores, setScores] = useState<HoleScores>(() =>
     padScores(seeded.scores)
@@ -62,10 +56,6 @@ export default function RoundForm({
     setError("");
     if (!courseName.trim()) {
       setError("코스 이름을 입력해 주세요.");
-      return;
-    }
-    if (!teeColor) {
-      setError("티 컬러를 선택해 주세요.");
       return;
     }
     if (filledHoles === 0) {
@@ -86,7 +76,8 @@ export default function RoundForm({
         time,
         frontCourse,
         backCourse,
-        teeColor,
+        // Persist default only — tee UI removed
+        teeColor: initial?.teeColor ?? DEFAULT_TEE_COLOR,
         scores: normalized.scores,
         players: normalized.players,
         companions: normalized.companions,
@@ -106,12 +97,12 @@ export default function RoundForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <h2 className="text-xl font-extrabold text-golf-950">{title}</h2>
+    <form onSubmit={onSubmit} className="space-y-5">
+      <h2 className="text-xl font-semibold text-golf-950">{title}</h2>
 
       {showOcrHint && (
-        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 px-4 py-3.5 text-sm font-medium text-amber-950">
-          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·티 컬러·스코어를 꼭 확인해 주세요.
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-normal text-amber-950">
+          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·스코어를 꼭 확인해 주세요.
         </div>
       )}
 
@@ -175,15 +166,13 @@ export default function RoundForm({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-base font-extrabold text-golf-900">
+          <label className="text-base font-semibold text-golf-900">
             내 스코어
           </label>
-          <span className="text-sm font-semibold text-golf-600">
+          <span className="text-sm font-medium text-golf-500">
             {filledHoles}/18 홀
           </span>
         </div>
-
-        <TeeColorTabs value={teeColor} onChange={setTeeColor} required />
 
         <ScorecardGrid
           scores={scores.length ? scores : emptyScores()}
@@ -195,7 +184,7 @@ export default function RoundForm({
       </div>
 
       {error && (
-        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700">
           {error}
         </p>
       )}
@@ -222,9 +211,9 @@ function Field({
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-extrabold text-golf-900">
+      <span className="text-sm font-medium text-golf-800">
         {label}
-        {required && <span className="ml-0.5 text-red-600">*</span>}
+        {required && <span className="ml-0.5 text-red-500">*</span>}
       </span>
       {children}
     </label>

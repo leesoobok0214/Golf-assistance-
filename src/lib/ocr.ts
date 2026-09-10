@@ -4,7 +4,6 @@ import { createWorker, type Worker } from "tesseract.js";
 import {
   DEFAULT_TEE_COLOR,
   emptyScores,
-  normalizeTeeColor,
   padScores,
   type HoleScores,
   type PlayerScores,
@@ -18,7 +17,7 @@ export interface OcrParseResult {
   time: string;
   frontCourse: string;
   backCourse: string;
-  /** Detected tee box color, or default when not found (editable). */
+  /** Kept for DB compat; UI no longer shows tee tabs. */
   teeColor: TeeColor;
   /** Optional companion names only (comma-separated). */
   companions: string;
@@ -79,7 +78,6 @@ function cleanName(s: string): string {
 }
 
 function extractCourseName(raw: string, lines: string[]): string {
-  // Prefer lines that look like club names
   const scored: { line: string; score: number }[] = [];
   for (let i = 0; i < Math.min(lines.length, 12); i++) {
     const line = cleanName(lines[i]);
@@ -92,7 +90,6 @@ function extractCourseName(raw: string, lines: string[]): string {
     if (/CC|GC/i.test(line)) score += 6;
     if (/[가-힣]{2,}/.test(line)) score += 3;
     if (i < 3) score += 2;
-    // Penalize mostly numeric / score-like
     const nums = (line.match(/\d+/g) || []).length;
     if (nums >= 3) score -= 5;
     if (score > 0) scored.push({ line, score });
@@ -100,12 +97,10 @@ function extractCourseName(raw: string, lines: string[]): string {
   scored.sort((a, b) => b.score - a.score);
   if (scored[0]) {
     let name = scored[0].line;
-    // Trim trailing score-ish tokens
     name = name.replace(/\s+\d{1,3}(\s+\d{1,3}){3,}\s*$/, "").trim();
     name = name.replace(/\s*(전반|후반|OUT|IN)\s*.*$/i, "").trim();
     return name.slice(0, 40);
   }
-  // Fallback: first non-noise Korean/English line
   for (const l of lines.slice(0, 8)) {
     const c = cleanName(l);
     if (c && /[가-힣A-Za-z]{2,}/.test(c) && !NOISE_LINE.test(c)) {
@@ -115,14 +110,10 @@ function extractCourseName(raw: string, lines: string[]): string {
   return "";
 }
 
-/**
- * Extract front/back (전반/후반) course names from Korean scorecards.
- * Patterns: "전반 레이크", "OUT : Lake", "후반:사이드", "레이크 / 사이드" near 전반·후반.
- */
-function extractFrontBack(raw: string, lines: string[]): {
-  frontCourse: string;
-  backCourse: string;
-} {
+function extractFrontBack(
+  raw: string,
+  lines: string[]
+): { frontCourse: string; backCourse: string } {
   let frontCourse = "";
   let backCourse = "";
 
@@ -135,9 +126,7 @@ function extractFrontBack(raw: string, lines: string[]): {
       .replace(/\s*(OUT|IN|홀|HOLE|PAR).*$/i, "")
       .replace(/[|].*$/, "")
       .trim();
-    // Drop if it's only numbers
     if (!rest || /^[\d\s]+$/.test(rest)) return "";
-    // Keep short course nicknames
     const token = rest.split(/\s{2,}|\s*[|/]\s*/)[0]?.trim() ?? rest;
     return cleanName(token).slice(0, 20);
   };
@@ -150,13 +139,15 @@ function extractFrontBack(raw: string, lines: string[]): {
     pickAfter(/(?:후반|IN|Back)\s*[:：\-]?\s*([^\n]{1,24})/i, raw) ||
     pickAfter(/(?:후반\s*코스)\s*[:：\-]?\s*([^\n]{1,24})/i, raw);
 
-  // "레이크 / 사이드" or "동코스 - 서코스" style pair on one line
   if (!frontCourse || !backCourse) {
     for (const line of lines) {
       const pair = line.match(
         /([가-힣A-Za-z][가-힣A-Za-z0-9]{0,10})\s*[\/·\-–~〜]\s*([가-힣A-Za-z][가-힣A-Za-z0-9]{0,10})/
       );
-      if (pair && /전반|후반|OUT|IN|코스|course/i.test(line + raw.slice(0, 200))) {
+      if (
+        pair &&
+        /전반|후반|OUT|IN|코스|course/i.test(line + raw.slice(0, 200))
+      ) {
         if (!frontCourse) frontCourse = cleanName(pair[1]).slice(0, 20);
         if (!backCourse) backCourse = cleanName(pair[2]).slice(0, 20);
         break;
@@ -164,10 +155,11 @@ function extractFrontBack(raw: string, lines: string[]): {
     }
   }
 
-  // Line-local: "전반 레이크" as whole short line
   if (!frontCourse) {
     for (const line of lines) {
-      const m = line.match(/^(?:전반|OUT)\s*[:：\-]?\s*([가-힣A-Za-z][가-힣A-Za-z0-9]{0,12})\s*$/i);
+      const m = line.match(
+        /^(?:전반|OUT)\s*[:：\-]?\s*([가-힣A-Za-z][가-힣A-Za-z0-9]{0,12})\s*$/i
+      );
       if (m) {
         frontCourse = cleanName(m[1]).slice(0, 20);
         break;
@@ -176,7 +168,9 @@ function extractFrontBack(raw: string, lines: string[]): {
   }
   if (!backCourse) {
     for (const line of lines) {
-      const m = line.match(/^(?:후반|IN)\s*[:：\-]?\s*([가-힣A-Za-z][가-힣A-Za-z0-9]{0,12})\s*$/i);
+      const m = line.match(
+        /^(?:후반|IN)\s*[:：\-]?\s*([가-힣A-Za-z][가-힣A-Za-z0-9]{0,12})\s*$/i
+      );
       if (m) {
         backCourse = cleanName(m[1]).slice(0, 20);
         break;
@@ -184,15 +178,14 @@ function extractFrontBack(raw: string, lines: string[]): {
     }
   }
 
-  // Avoid echoing labels
   if (/^(전반|후반|OUT|IN)$/i.test(frontCourse)) frontCourse = "";
   if (/^(전반|후반|OUT|IN)$/i.test(backCourse)) backCourse = "";
 
   return { frontCourse, backCourse };
 }
 
-/** Extract integers that look like hole strokes from a line. */
-function strokeNumbersFromLine(line: string): number[] {
+/** Extract integers 1–15 from a line. */
+function numbersFromLine(line: string): number[] {
   const nums: number[] = [];
   const re = /\b([1-9]|1[0-5])\b/g;
   let m: RegExpExecArray | null;
@@ -202,153 +195,253 @@ function strokeNumbersFromLine(line: string): number[] {
   return nums;
 }
 
+/**
+ * True when nums look like hole labels (1..9, 10..18, or 1..18),
+ * or any long strictly-ascending-by-1 run (never stroke scores).
+ */
+function isHoleNumberSequence(nums: number[]): boolean {
+  if (nums.length < 9) return false;
+
+  const isSeq = (arr: number[], start: number) =>
+    arr.length >= 9 && arr.every((n, i) => n === start + i);
+
+  if (isSeq(nums.slice(0, 9), 1)) return true;
+  if (isSeq(nums.slice(0, 9), 10)) return true;
+  if (nums.length >= 18 && isSeq(nums.slice(0, 18), 1)) return true;
+
+  // Any 8+ consecutive values ascending by exactly 1 (catches 2..10 etc.)
+  let streak = 1;
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] === nums[i - 1] + 1) {
+      streak += 1;
+      if (streak >= 8) return true;
+    } else {
+      streak = 1;
+    }
+  }
+
+  const nine = nums.slice(0, 9);
+  let hits = 0;
+  for (let i = 0; i < nine.length; i++) {
+    if (nine[i] === i + 1) hits += 1;
+  }
+  if (hits >= 7) return true;
+
+  return false;
+}
+
+/** Prefer rows whose values are mostly typical strokes (3–7). */
+function strokeQuality(nums: number[]): number {
+  if (nums.length < 9) return -1;
+  if (isHoleNumberSequence(nums)) return -100;
+
+  const pick = nums.slice(0, 18);
+  const strokeLike = pick.filter((n) => n >= 3 && n <= 7);
+  const ratio = strokeLike.length / pick.length;
+
+  const avg = pick.reduce((a, b) => a + b, 0) / pick.length;
+  const uniq = new Set(pick).size;
+  let score = ratio * 10;
+  // Flat par-ish rows
+  if (avg >= 3 && avg <= 5.2 && uniq <= 3) score -= 5;
+  if (pick[0] === 1 && pick[1] === 2 && pick[2] === 3) score -= 8;
+  // Long consecutive +1 streak = hole labels (not scattered 4→5 pairs)
+  let streak = 1;
+  let maxStreak = 1;
+  for (let i = 1; i < pick.length; i++) {
+    if (pick[i] === pick[i - 1] + 1) {
+      streak += 1;
+      maxStreak = Math.max(maxStreak, streak);
+    } else {
+      streak = 1;
+    }
+  }
+  if (maxStreak >= 7) score -= 20;
+  return score;
+}
+
+function isMeName(token: string): boolean {
+  return /^(나|저|본인|ME|SELF|MY)$/i.test(cleanName(token));
+}
+
 function isLikelyName(token: string): boolean {
   const t = cleanName(token);
-  if (!t || t.length < 2 || t.length > 12) return false;
+  if (!t || t.length > 12) return false;
+  if (isMeName(t)) return true; // "나" is 1 char
+  if (t.length < 2) return false;
   if (NOISE_LINE.test(t)) return false;
-  if (/^(전반|후반|OUT|IN|PAR|HDCP|TOTAL|합계|나|ME|SELF)$/i.test(t)) return false;
+  if (/^(전반|후반|OUT|IN|PAR|HDCP|TOTAL|합계|HOLE|홀)$/i.test(t)) return false;
   if (/^[\d\s]+$/.test(t)) return false;
-  // Korean 2–4 char name or Latin name
   if (/^[가-힣]{2,4}$/.test(t)) return true;
   if (/^[A-Za-z][A-Za-z.\-]{1,11}$/.test(t)) return true;
   if (/^[가-힣]{2,4}\s*[A-Za-z]?$/.test(t)) return true;
   return false;
 }
 
-/**
- * Try to parse multiple player score rows.
- * Heuristics for Korean scorecards:
- * - Line starts with a name, then 9 or 18 stroke numbers
- * - Or clustered runs of 18 stroke-like numbers assigned to detected names
- */
-function extractPlayerRows(raw: string, lines: string[]): PlayerScores[] {
-  const rows: PlayerScores[] = [];
-
-  for (const line of lines) {
-    const nums = strokeNumbersFromLine(line);
-    // Need at least 9 stroke-like numbers on the line
-    const strokes = nums.filter((n) => n >= 2 && n <= 10);
-    if (strokes.length < 9 && nums.length < 9) continue;
-
-    // Name = leading non-numeric token(s)
-    const namePart = line
-      .replace(/[\d]+/g, " ")
-      .replace(/[|:：,，]/g, " ")
-      .trim()
-      .split(/\s+/)[0];
-
-    const pick =
-      strokes.length >= 18
-        ? strokes.slice(0, 18)
-        : nums.filter((n) => n >= 2 && n <= 12).length >= 18
-          ? nums.filter((n) => n >= 2 && n <= 12).slice(0, 18)
-          : strokes.length >= 9
-            ? strokes.slice(0, 18)
-            : nums.slice(0, 18);
-
-    if (pick.length < 9) continue;
-
-    const name = isLikelyName(namePart || "") ? cleanName(namePart) : "";
-    const scores = emptyScores();
-    pick.slice(0, 18).forEach((v, i) => {
-      scores[i] = v;
-    });
-
-    // Skip rows that look like PAR/HDCP (all 3–5 and very flat)
-    const avg = pick.reduce((a, b) => a + b, 0) / pick.length;
-    if (avg >= 3 && avg <= 5.2 && new Set(pick).size <= 3 && !name) {
-      // Likely par row without a name
-      continue;
-    }
-
-    rows.push({
-      name: name || `플레이어${rows.length + 1}`,
-      scores,
-      isMe: false,
-    });
-  }
-
-  // Deduplicate near-identical score rows
-  const unique: PlayerScores[] = [];
-  for (const r of rows) {
-    const key = r.scores.map((s) => s ?? "x").join(",");
-    if (unique.some((u) => u.scores.map((s) => s ?? "x").join(",") === key)) continue;
-    unique.push(r);
-  }
-
-  // Cap at 4 players (typical foursome)
-  return unique.slice(0, 4);
-}
-
-function extractSingleScoreRun(raw: string): HoleScores {
-  const numbers: number[] = [];
-  const numRe = /\b([1-9]|1[0-2])\b/g;
-  let m: RegExpExecArray | null;
-  while ((m = numRe.exec(raw)) !== null) {
-    numbers.push(parseInt(m[1], 10));
-  }
+function toScores(pick: number[]): HoleScores {
   const scores = emptyScores();
-  const strokeLike = numbers.filter((n) => n >= 2 && n <= 10);
-  const pick =
-    strokeLike.length >= 18
-      ? strokeLike.slice(-18)
-      : numbers.length >= 18
-        ? numbers.slice(-18)
-        : strokeLike;
   pick.slice(0, 18).forEach((v, i) => {
     scores[i] = v;
   });
   return scores;
 }
 
+function isParLike(pick: number[]): boolean {
+  if (pick.length < 9) return false;
+  const avg = pick.reduce((a, b) => a + b, 0) / pick.length;
+  const uniq = new Set(pick).size;
+  return avg >= 3 && avg <= 5.2 && uniq <= 3 && pick.every((n) => n >= 3 && n <= 5);
+}
 
 /**
- * Detect tee markers from OCR text (화이트/블루/레드 or W/B/R near tee keywords).
- * Returns DEFAULT_TEE_COLOR when nothing clear is found — form stays editable.
+ * Try to parse player score rows.
+ * Skips hole-number sequences (1–9 / 1–18) and prefers stroke-like rows (3–7).
  */
-function extractTeeColor(raw: string): TeeColor {
-  const text = raw.replace(/\s+/g, " ");
+function extractPlayerRows(raw: string, lines: string[]): PlayerScores[] {
+  const rows: PlayerScores[] = [];
 
-  // Explicit Korean labels (prefer longer / clearer matches)
-  if (/화이트\s*티|화이트티|White\s*Tee|WHITE\s*TEE|백티/i.test(text)) {
-    return "white";
-  }
-  if (/블루\s*티|블루티|Blue\s*Tee|BLUE\s*TEE|청티/i.test(text)) {
-    return "blue";
-  }
-  if (/레드\s*티|레드티|Red\s*Tee|RED\s*TEE|적티|레이디\s*티/i.test(text)) {
-    return "red";
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^(hole|홀|no\.?|#|par|hdcp|handicap|야드|yard|yds?)\b/i.test(trimmed)) {
+      continue;
+    }
+    if (/\b(par|hdcp|handicap)\b/i.test(trimmed) && !/[가-힣]{2,}/.test(trimmed)) {
+      continue;
+    }
+
+    const nums = numbersFromLine(line);
+    if (nums.length < 9) continue;
+    if (isHoleNumberSequence(nums)) continue;
+
+    const quality = strokeQuality(nums);
+    if (quality < 3) continue;
+
+    const strokes = nums.filter((n) => n >= 2 && n <= 10);
+    const pick =
+      strokes.length >= 18
+        ? strokes.slice(0, 18)
+        : strokes.length >= 9
+          ? strokes.slice(0, 18)
+          : nums.slice(0, 18);
+
+    if (pick.length < 9) continue;
+    if (isHoleNumberSequence(pick)) continue;
+    const strokeRatio =
+      pick.filter((n) => n >= 3 && n <= 7).length / pick.length;
+    if (strokeRatio < 0.5) continue;
+
+    const namePart = line
+      .replace(/[\d]+/g, " ")
+      .replace(/[|:：,，]/g, " ")
+      .trim()
+      .split(/\s+/)[0];
+
+    const name =
+      isMeName(namePart || "") || isLikelyName(namePart || "")
+        ? cleanName(namePart)
+        : "";
+
+    // Skip unnamed flat par rows
+    if (isParLike(pick) && !name) continue;
+
+    rows.push({
+      name: name || `플레이어${rows.length + 1}`,
+      scores: toScores(pick),
+      isMe: isMeName(name),
+    });
   }
 
-  // Standalone color words near tee / 티 / tee box context
-  const nearTee =
-    /(?:티|tee|tee\s*box|티박스|티잉)\s*[:：\-]?\s*(화이트|블루|레드|white|blue|red|W|B|R)\b/i;
-  const m1 = text.match(nearTee);
-  if (m1) {
-    const token = m1[1].toLowerCase();
-    if (token === "화이트" || token === "white" || token === "w") return "white";
-    if (token === "블루" || token === "blue" || token === "b") return "blue";
-    if (token === "레드" || token === "red" || token === "r") return "red";
+  const unique: PlayerScores[] = [];
+  for (const r of rows) {
+    const key = r.scores.map((s) => s ?? "x").join(",");
+    if (unique.some((u) => u.scores.map((s) => s ?? "x").join(",") === key))
+      continue;
+    unique.push(r);
   }
 
-  const colorThenTee =
-    /(화이트|블루|레드|white|blue|red)\s*(?:티|tee)/i;
-  const m2 = text.match(colorThenTee);
-  if (m2) {
-    const token = m2[1].toLowerCase();
-    if (token === "화이트" || token === "white") return "white";
-    if (token === "블루" || token === "blue") return "blue";
-    if (token === "레드" || token === "red") return "red";
+  // Prefer me/named rows; keep document order otherwise (OUT then IN).
+  unique.sort((a, b) => {
+    const aMe = a.isMe || isMeName(a.name) ? 2 : isLikelyName(a.name) ? 1 : 0;
+    const bMe = b.isMe || isMeName(b.name) ? 2 : isLikelyName(b.name) ? 1 : 0;
+    return bMe - aMe;
+  });
+
+  return unique.slice(0, 4);
+}
+
+/**
+ * Single-run fallback across whole text.
+ * Never returns a hole-label sequence. If unsure, leave empty.
+ */
+function extractSingleScoreRun(raw: string, lines: string[]): HoleScores {
+  let best: { nums: number[]; quality: number; named: boolean } | null = null;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^(hole|홀|no\.?|#|par|hdcp|handicap|야드|yard|yds?)\b/i.test(trimmed)) {
+      continue;
+    }
+    const nums = numbersFromLine(line);
+    if (nums.length < 9) continue;
+    if (isHoleNumberSequence(nums)) continue;
+    if (isParLike(nums.slice(0, 18))) continue;
+    const quality = strokeQuality(nums);
+    if (quality < 5) continue;
+    const namePart = line
+      .replace(/[\d]+/g, " ")
+      .replace(/[|:：,，]/g, " ")
+      .trim()
+      .split(/\s+/)[0];
+    const named = isLikelyName(namePart || "");
+    if (
+      !best ||
+      (named && !best.named) ||
+      (named === best.named && quality > best.quality)
+    ) {
+      best = { nums, quality, named };
+    }
   }
 
-  // Loose Korean color word anywhere (last resort — only if single color mentioned)
-  const hits: TeeColor[] = [];
-  if (/화이트|\bWHITE\b/i.test(text)) hits.push("white");
-  if (/블루|\bBLUE\b/i.test(text)) hits.push("blue");
-  if (/레드|\bRED\b/i.test(text)) hits.push("red");
-  if (hits.length === 1) return hits[0];
+  if (best) {
+    const strokes = best.nums.filter((n) => n >= 2 && n <= 10);
+    const pick =
+      strokes.length >= 9 ? strokes.slice(0, 18) : best.nums.slice(0, 18);
+    if (
+      !isHoleNumberSequence(pick) &&
+      !isParLike(pick) &&
+      pick.filter((n) => n >= 3 && n <= 7).length >= 5
+    ) {
+      return toScores(pick);
+    }
+  }
 
-  return DEFAULT_TEE_COLOR;
+  // Whole-document scan — still reject hole sequences / par-like
+  const numbers: number[] = [];
+  const numRe = /\b([1-9]|1[0-5])\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = numRe.exec(raw)) !== null) {
+    numbers.push(parseInt(m[1], 10));
+  }
+
+  let bestWindow: number[] | null = null;
+  let bestQ = -1;
+  for (const len of [18, 9]) {
+    for (let i = 0; i + len <= numbers.length; i++) {
+      const win = numbers.slice(i, i + len);
+      if (isHoleNumberSequence(win)) continue;
+      if (isParLike(win)) continue;
+      const q = strokeQuality(win);
+      if (q > bestQ) {
+        bestQ = q;
+        bestWindow = win;
+      }
+    }
+  }
+
+  if (bestWindow && bestQ >= 6) {
+    return toScores(bestWindow);
+  }
+
+  return emptyScores();
 }
 
 export function parseOcrText(raw: string): OcrParseResult {
@@ -357,7 +450,9 @@ export function parseOcrText(raw: string): OcrParseResult {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const dateMatch = raw.match(/(\d{4})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})/);
+  const dateMatch = raw.match(
+    /(\d{4})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})/
+  );
   let date = todayISO();
   if (dateMatch) {
     const y = dateMatch[1];
@@ -374,26 +469,55 @@ export function parseOcrText(raw: string): OcrParseResult {
 
   const courseName = extractCourseName(raw, lines);
   const { frontCourse, backCourse } = extractFrontBack(raw, lines);
-  const teeColor = normalizeTeeColor(extractTeeColor(raw));
 
-  // Multi-player rows: keep first (or 나/ME) as me scores; other names → companions text only
   const playerRows = extractPlayerRows(raw, lines);
   let scores = emptyScores();
   let companions = "";
 
   if (playerRows.length === 0) {
-    scores = extractSingleScoreRun(raw);
+    scores = extractSingleScoreRun(raw, lines);
   } else {
-    const meIdx = playerRows.findIndex((p) =>
-      /^(나|저|본인|ME|SELF|MY)$/i.test(p.name)
+    const meRows = playerRows.filter(
+      (p) => p.isMe || /^(나|저|본인|ME|SELF|MY)$/i.test(p.name)
     );
-    const idx = meIdx >= 0 ? meIdx : 0;
-    scores = padScores(playerRows[idx].scores);
+    const pickRows = meRows.length ? meRows : [playerRows[0]];
+
+    // Merge two 9-hole me rows into 18 when possible
+    let candidate = emptyScores();
+    if (
+      pickRows.length >= 2 &&
+      pickRows[0].scores.slice(0, 9).every((s) => s != null) &&
+      pickRows[0].scores.slice(9).every((s) => s == null) &&
+      pickRows[1].scores.slice(0, 9).every((s) => s != null) &&
+      pickRows[1].scores.slice(9).every((s) => s == null)
+    ) {
+      candidate = padScores([
+        ...pickRows[0].scores.slice(0, 9),
+        ...pickRows[1].scores.slice(0, 9),
+      ]);
+    } else {
+      candidate = padScores(pickRows[0].scores);
+    }
+
+    const vals = candidate.filter((s): s is number => s != null);
+    if (isHoleNumberSequence(vals) || strokeQuality(vals) < 3) {
+      scores = emptyScores();
+    } else {
+      scores = candidate;
+    }
+
+    const used = new Set(pickRows);
     companions = playerRows
-      .filter((_, i) => i !== idx)
+      .filter((p) => !used.has(p) && !p.isMe)
       .map((p) => (p.name || "").trim())
       .filter((n) => n && !/^플레이어\d*$/i.test(n))
       .join(", ");
+  }
+
+  // Final safety: never ship a hole-number sequence as scores
+  const finalVals = scores.filter((s): s is number => s != null);
+  if (finalVals.length >= 9 && isHoleNumberSequence(finalVals)) {
+    scores = emptyScores();
   }
 
   const players: PlayerScores[] = [
@@ -407,7 +531,7 @@ export function parseOcrText(raw: string): OcrParseResult {
     time,
     frontCourse,
     backCourse,
-    teeColor,
+    teeColor: DEFAULT_TEE_COLOR,
     companions,
     scores: padScores(scores),
     players,
@@ -424,7 +548,9 @@ export function todayISO(): string {
 
 export function nowTime(): string {
   const d = new Date();
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes()
+  ).padStart(2, "0")}`;
 }
 
 export async function terminateOcr(): Promise<void> {

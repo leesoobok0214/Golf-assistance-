@@ -39,14 +39,14 @@ export default function StatsPage() {
   return (
     <main className="page space-y-5">
       <header className="pt-1">
-        <h1 className="text-2xl font-extrabold text-golf-950">통계</h1>
+        <h1 className="text-2xl font-semibold text-golf-950">통계</h1>
         <p className="text-base font-medium text-golf-700">
           내 스코어만 집계해요 (기기 안 IndexedDB)
         </p>
       </header>
 
       {error && (
-        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
           {error}
         </p>
       )}
@@ -65,14 +65,14 @@ export default function StatsPage() {
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-lg font-extrabold text-golf-950">스코어 추세</h2>
+            <h2 className="text-lg font-semibold text-golf-950">스코어 추세</h2>
             <TrendChart data={stats.trend} />
           </section>
 
           <section className="space-y-2">
-            <h2 className="text-lg font-extrabold text-golf-950">코스별 평균</h2>
+            <h2 className="text-lg font-semibold text-golf-950">코스별 평균</h2>
             {stats.perCourse.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-golf-300 px-4 py-8 text-center text-base font-medium text-golf-600">
+              <div className="rounded-2xl border border-dashed border-golf-300 px-4 py-8 text-center text-base font-medium text-golf-600">
                 데이터가 없습니다
               </div>
             ) : (
@@ -80,17 +80,17 @@ export default function StatsPage() {
                 {stats.perCourse.map((c) => (
                   <li
                     key={c.courseName}
-                    className="flex items-center justify-between rounded-2xl border-2 border-golf-200 bg-white px-4 py-3.5 shadow-card"
+                    className="flex items-center justify-between rounded-2xl border border-golf-200 bg-white px-4 py-3.5 shadow-card"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-base font-extrabold text-golf-950">
+                      <p className="truncate text-base font-semibold text-golf-950">
                         {c.courseName}
                       </p>
-                      <p className="text-sm font-semibold text-golf-600">
+                      <p className="text-sm font-medium text-golf-600">
                         {c.count}라운드
                       </p>
                     </div>
-                    <span className="text-2xl font-extrabold text-golf-800">
+                    <span className="text-2xl font-bold text-golf-800">
                       {c.average}
                     </span>
                   </li>
@@ -122,9 +122,9 @@ function StatTile({
         ? "text-orange-700"
         : "text-golf-900";
   return (
-    <div className="rounded-2xl border-2 border-golf-200 bg-white p-4 shadow-card">
-      <p className="text-sm font-bold text-golf-600">{label}</p>
-      <p className={`mt-1 text-3xl font-extrabold ${color}`}>{value}</p>
+    <div className="rounded-2xl border border-golf-200 bg-white p-4 shadow-card">
+      <p className="text-sm font-medium text-golf-600">{label}</p>
+      <p className={`mt-1 text-3xl font-bold ${color}`}>{value}</p>
     </div>
   );
 }

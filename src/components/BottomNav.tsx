@@ -14,7 +14,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-golf-300 bg-white/98 backdrop-blur-md safe-bottom">
+    <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-golf-200 bg-white/98 backdrop-blur-md safe-bottom">
       <ul className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1.5 pb-1.5">
         {items.map((item) => {
           const active =
@@ -26,7 +26,7 @@ export default function BottomNav() {
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
-                className={`flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-sm font-bold transition ${
+                className={`flex flex-col items-center gap-1 rounded-2xl px-2 py-2.5 text-sm font-medium transition ${
                   active
                     ? "bg-golf-100 text-golf-900"
                     : "text-golf-600 hover:text-golf-800"

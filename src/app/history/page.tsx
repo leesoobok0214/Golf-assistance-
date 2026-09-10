@@ -48,8 +48,8 @@ export default function HistoryPage() {
     <ErrorBoundary label="history">
     <main className="page space-y-4">
       <header className="flex items-center justify-between pt-1">
-        <h1 className="text-2xl font-extrabold text-golf-950">라운드 기록</h1>
-        <Link href="/add" className="text-base font-extrabold text-golf-700">
+        <h1 className="text-2xl font-semibold text-golf-950">라운드 기록</h1>
+        <Link href="/add" className="text-base font-semibold text-golf-700">
           + 추가
         </Link>
       </header>
@@ -74,10 +74,10 @@ export default function HistoryPage() {
             key={key}
             type="button"
             onClick={() => setFilter(key)}
-            className={`rounded-full px-3.5 py-2 text-sm font-extrabold transition ${
+            className={`rounded-full px-3.5 py-2 text-sm font-medium transition ${
               filter === key
                 ? "bg-golf-700 text-white"
-                : "border-2 border-golf-300 bg-white text-golf-700"
+                : "border border-golf-300 bg-white text-golf-700"
             }`}
           >
             {label}
@@ -86,7 +86,7 @@ export default function HistoryPage() {
       </div>
 
       {error && (
-        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
           {error}
         </p>
       )}
@@ -96,12 +96,12 @@ export default function HistoryPage() {
           불러오는 중…
         </p>
       ) : filtered.length === 0 && !error ? (
-        <div className="rounded-2xl border-2 border-dashed border-golf-300 px-4 py-12 text-center text-base font-medium text-golf-600">
+        <div className="rounded-2xl border border-dashed border-golf-300 px-4 py-12 text-center text-base font-medium text-golf-600">
           결과가 없습니다
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm font-bold text-golf-600">
+          <p className="text-sm font-medium text-golf-600">
             {filtered.length}개 라운드
           </p>
           {filtered.map((r, i) => (

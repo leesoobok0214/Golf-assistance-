@@ -4,7 +4,7 @@ export default function OfflinePage() {
       <p className="text-4xl" aria-hidden>
         ⛳
       </p>
-      <h1 className="text-xl font-extrabold text-golf-900">오프라인입니다</h1>
+      <h1 className="text-xl font-semibold text-golf-900">오프라인입니다</h1>
       <p className="text-sm text-golf-500">
         네트워크에 연결되면 다시 시도해 주세요.
         <br />

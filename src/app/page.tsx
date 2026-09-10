@@ -48,11 +48,11 @@ export default function HomePage() {
           alt="골프비서"
           width={56}
           height={56}
-          className="rounded-2xl border-2 border-golf-200 shadow-card"
+          className="rounded-2xl border border-golf-200 shadow-card"
           priority
         />
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-golf-950">
+          <h1 className="text-2xl font-semibold tracking-tight text-golf-950">
             골프비서
           </h1>
           <p className="text-base font-medium text-golf-700">
@@ -62,21 +62,21 @@ export default function HomePage() {
       </header>
 
       {error && (
-        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
           {error}
         </p>
       )}
 
       <section className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border-2 border-golf-200 bg-white p-4 shadow-card">
+        <div className="rounded-2xl border border-golf-200 bg-white p-4 shadow-card">
           <p className="text-sm font-bold text-golf-600">평균 스코어</p>
-          <p className="mt-1 text-3xl font-extrabold text-golf-900">
+          <p className="mt-1 text-3xl font-bold text-golf-900">
             {stats.average ?? "–"}
           </p>
         </div>
-        <div className="rounded-2xl border-2 border-golf-200 bg-white p-4 shadow-card">
+        <div className="rounded-2xl border border-golf-200 bg-white p-4 shadow-card">
           <p className="text-sm font-bold text-golf-600">라운드 수</p>
-          <p className="mt-1 text-3xl font-extrabold text-golf-900">
+          <p className="mt-1 text-3xl font-bold text-golf-900">
             {stats.count}
           </p>
         </div>
@@ -115,7 +115,7 @@ export default function HomePage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-extrabold text-golf-950">최근 라운드</h2>
+          <h2 className="text-lg font-semibold text-golf-950">최근 라운드</h2>
           <Link href="/history" className="text-sm font-bold text-golf-700">
             전체 보기
           </Link>
@@ -125,7 +125,7 @@ export default function HomePage() {
             불러오는 중…
           </p>
         ) : recent.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-golf-300 bg-white/60 px-4 py-10 text-center">
+          <div className="rounded-2xl border border-dashed border-golf-300 bg-white/60 px-4 py-10 text-center">
             <p className="text-base font-semibold text-golf-700">
               아직 라운드가 없어요
             </p>

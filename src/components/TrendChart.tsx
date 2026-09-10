@@ -9,7 +9,7 @@ interface Point {
 export default function TrendChart({ data }: { data: Point[] }) {
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border-2 border-dashed border-golf-300 bg-golf-50/50 px-4 py-10 text-center text-base font-medium text-golf-600">
+      <div className="rounded-2xl border border-dashed border-golf-300 bg-golf-50/50 px-4 py-10 text-center text-base font-medium text-golf-600">
         아직 추세를 그릴 데이터가 없어요
       </div>
     );
@@ -40,7 +40,7 @@ export default function TrendChart({ data }: { data: Point[] }) {
     ` ${points[points.length - 1].x},${h - 4}`;
 
   return (
-    <div className="rounded-2xl border-2 border-golf-200 bg-white p-3 shadow-card">
+    <div className="rounded-2xl border border-golf-200 bg-white p-3 shadow-card">
       <svg viewBox={`0 0 ${w} ${h}`} className="h-40 w-full" role="img" aria-label="스코어 추세">
         <defs>
           <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">

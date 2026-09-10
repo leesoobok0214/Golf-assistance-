@@ -66,7 +66,7 @@ export default function ScanPage() {
     return (
       <main className="page space-y-4">
         {preview && (
-          <div className="overflow-hidden rounded-2xl border-2 border-golf-300 bg-white shadow-card">
+          <div className="overflow-hidden rounded-2xl border border-golf-200 bg-white shadow-card">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={preview}
@@ -76,7 +76,7 @@ export default function ScanPage() {
           </div>
         )}
         {error && (
-          <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
             {error}
           </p>
         )}
@@ -125,7 +125,7 @@ export default function ScanPage() {
           />
         )}
         <div className="w-full max-w-xs space-y-2 text-center">
-          <p className="text-lg font-extrabold text-golf-900">스코어카드 읽는 중…</p>
+          <p className="text-lg font-semibold text-golf-900">스코어카드 읽는 중…</p>
           <p className="text-sm font-medium text-golf-700">{status}</p>
           <div className="h-3 overflow-hidden rounded-full border border-golf-300 bg-golf-100">
             <div
@@ -144,14 +144,14 @@ export default function ScanPage() {
   return (
     <main className="page space-y-5">
       <header className="pt-1">
-        <h1 className="text-2xl font-extrabold text-golf-950">스코어카드 스캔</h1>
+        <h1 className="text-2xl font-semibold text-golf-950">스코어카드 스캔</h1>
         <p className="mt-1.5 text-base font-medium leading-relaxed text-golf-700">
           종이 스코어카드를 촬영하거나 사진 파일을 올리면, 기기에서 OCR로 읽어
           편집할 수 있어요. 서버로 이미지가 전송되지 않습니다.
         </p>
       </header>
 
-      <div className="overflow-hidden rounded-3xl border-2 border-golf-200 bg-gradient-to-br from-golf-100 to-golf-50 p-6 shadow-card">
+      <div className="overflow-hidden rounded-3xl border border-golf-200 bg-gradient-to-br from-golf-100 to-golf-50 p-6 shadow-card">
         <div className="flex flex-col items-center gap-3 text-center">
           <Image
             src="/icons/icon-192.png"
@@ -167,7 +167,7 @@ export default function ScanPage() {
       </div>
 
       {error && (
-        <p className="rounded-xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
+        <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-semibold text-red-700">
           {error}
         </p>
       )}
@@ -203,11 +203,11 @@ export default function ScanPage() {
         onChange={(e) => onFile(e.target.files?.[0])}
       />
 
-      <div className="rounded-2xl border-2 border-golf-300 bg-white p-4 text-sm font-medium leading-relaxed text-golf-800 shadow-card">
-        <p className="font-extrabold text-golf-950">OCR 안내</p>
+      <div className="rounded-2xl border border-golf-200 bg-white p-4 text-sm font-medium leading-relaxed text-golf-800 shadow-card">
+        <p className="font-semibold text-golf-950">OCR 안내</p>
         <ul className="mt-2 list-disc space-y-1.5 pl-4">
           <li>클라이언트에서 Tesseract.js로 처리합니다 (kor+eng 시도, 실패 시 eng).</li>
-          <li>코스명·전반/후반·티 컬러(화이트/블루/레드)·내 스코어를 자동으로 읽어 보려 합니다. 동반자 스코어 행은 무시합니다.</li>
+          <li>코스명·전반/후반·내 스코어만 읽어 보려 합니다. 홀 번호(1–9) 행은 스코어로 쓰지 않습니다. 동반자는 이름만(선택) 남깁니다.</li>
           <li>인식 후 반드시 편집 화면에서 홀 스코어를 확인해 주세요.</li>
           <li>손글씨·빛반사·기울기는 정확도가 떨어질 수 있어요.</li>
         </ul>
