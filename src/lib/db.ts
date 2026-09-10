@@ -5,7 +5,6 @@ import type { GolfRound, RoundInput } from "./types";
 import {
   DEFAULT_TEE_COLOR,
   calcTotals,
-  companionsLabel,
   emptyScores,
   normalizePlayers,
   normalizeTeeColor,
@@ -96,7 +95,7 @@ export class GolfDB extends Dexie {
 export const db =
   typeof window !== "undefined" ? new GolfDB() : (null as unknown as GolfDB);
 
-/** Ensure legacy / partial rows load with safe players[] + padded scores + teeColor. */
+/** Ensure legacy / partial rows load with safe single me-player + padded scores + teeColor. */
 export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
   if (!raw || typeof raw !== "object") {
     const scores = emptyScores();
@@ -156,7 +155,7 @@ export function hydrateRound(raw: GolfRound | null | undefined): GolfRound {
       ),
       scores,
       players: [{ name: "나", scores, isMe: true }],
-      companions: raw.companions || "",
+      companions: typeof raw.companions === "string" ? raw.companions : "",
       outTotal: raw.outTotal || totals.outTotal,
       inTotal: raw.inTotal || totals.inTotal,
       total: raw.total || totals.total,
@@ -226,11 +225,13 @@ export async function saveRound(input: RoundInput): Promise<number> {
       teeColor: normalizeTeeColor(input.teeColor),
       companions,
       scores: padScores(scores),
-      players: players.map((p) => ({
-        name: (p.name || (p.isMe ? "나" : "동반자")).trim(),
-        scores: padScores(p.scores),
-        isMe: !!p.isMe,
-      })),
+      players: [
+        {
+          name: (players[0]?.name || "나").trim() || "나",
+          scores: padScores(scores),
+          isMe: true,
+        },
+      ],
       outTotal,
       inTotal,
       total,
@@ -305,15 +306,12 @@ export async function searchRounds(query: string): Promise<GolfRound[]> {
     const q = query.trim().toLowerCase();
     if (!q) return all;
     return all.filter((r) => {
-      const companionText =
-        companionsLabel(r.players) || (r.companions ?? "");
-      const playerNames = (r.players ?? []).map((p) => p.name).join(" ");
+      const companionText = (r.companions ?? "").toLowerCase();
       return (
         (r.courseName ?? "").toLowerCase().includes(q) ||
         (r.frontCourse ?? "").toLowerCase().includes(q) ||
         (r.backCourse ?? "").toLowerCase().includes(q) ||
-        companionText.toLowerCase().includes(q) ||
-        playerNames.toLowerCase().includes(q) ||
+        companionText.includes(q) ||
         (r.date ?? "").includes(q)
       );
     });

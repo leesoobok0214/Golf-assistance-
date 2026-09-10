@@ -7,12 +7,11 @@ import { TeeColorTabs } from "./TeeChip";
 import { saveRound } from "@/lib/db";
 import {
   DEFAULT_TEE_COLOR,
-  calcTotals,
   emptyScores,
   normalizePlayers,
   normalizeTeeColor,
+  padScores,
   type HoleScores,
-  type PlayerScores,
   type RoundInput,
   type TeeColor,
 } from "@/lib/types";
@@ -25,15 +24,6 @@ interface Props {
   showOcrHint?: boolean;
 }
 
-function initPlayers(initial?: Partial<RoundInput>): PlayerScores[] {
-  const { players } = normalizePlayers({
-    scores: initial?.scores,
-    players: initial?.players,
-    companions: initial?.companions,
-  });
-  return players;
-}
-
 export default function RoundForm({
   initial,
   title = "라운드 입력",
@@ -41,6 +31,12 @@ export default function RoundForm({
   showOcrHint = false,
 }: Props) {
   const router = useRouter();
+  const seeded = normalizePlayers({
+    scores: initial?.scores,
+    players: initial?.players,
+    companions: initial?.companions,
+  });
+
   const [courseName, setCourseName] = useState(initial?.courseName ?? "");
   const [date, setDate] = useState(initial?.date ?? todayISO());
   const [time, setTime] = useState(initial?.time ?? nowTime());
@@ -49,45 +45,17 @@ export default function RoundForm({
   const [teeColor, setTeeColor] = useState<TeeColor>(() =>
     normalizeTeeColor(initial?.teeColor ?? DEFAULT_TEE_COLOR)
   );
-  const [players, setPlayers] = useState<PlayerScores[]>(() => initPlayers(initial));
+  const [companions, setCompanions] = useState(seeded.companions);
+  const [scores, setScores] = useState<HoleScores>(() =>
+    padScores(seeded.scores)
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const meIdx = players.findIndex((p) => p.isMe);
-  const meIndex = meIdx >= 0 ? meIdx : 0;
-  const meScores = players[meIndex]?.scores ?? emptyScores();
-
   const filledHoles = useMemo(
-    () => meScores.filter((s) => s != null).length,
-    [meScores]
+    () => scores.filter((s) => s != null).length,
+    [scores]
   );
-
-  const updatePlayerScores = (index: number, scores: HoleScores) => {
-    setPlayers((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, scores } : p))
-    );
-  };
-
-  const updatePlayerName = (index: number, name: string) => {
-    setPlayers((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, name } : p))
-    );
-  };
-
-  const addCompanion = () => {
-    if (players.length >= 4) return;
-    setPlayers((prev) => [
-      ...prev,
-      { name: "", scores: emptyScores(), isMe: false },
-    ]);
-  };
-
-  const removeCompanion = (index: number) => {
-    setPlayers((prev) => {
-      if (prev[index]?.isMe) return prev;
-      return prev.filter((_, i) => i !== index);
-    });
-  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,7 +74,11 @@ export default function RoundForm({
     }
     setSaving(true);
     try {
-      const normalized = normalizePlayers({ players, scores: meScores });
+      const normalized = normalizePlayers({
+        scores,
+        companions,
+        players: [{ name: "나", scores, isMe: true }],
+      });
       const id = await saveRound({
         id: initial?.id,
         courseName,
@@ -139,7 +111,7 @@ export default function RoundForm({
 
       {showOcrHint && (
         <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 px-4 py-3.5 text-sm font-medium text-amber-950">
-          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·티 컬러·동반자 스코어를 꼭 확인해 주세요.
+          OCR 결과는 틀릴 수 있어요. 코스명·전반/후반·티 컬러·스코어를 꼭 확인해 주세요.
         </div>
       )}
 
@@ -191,6 +163,16 @@ export default function RoundForm({
         </Field>
       </div>
 
+      <Field label="동반자 (선택)">
+        <input
+          className="field"
+          value={companions}
+          onChange={(e) => setCompanions(e.target.value)}
+          placeholder="이름만, 쉼표로 구분 (예: 김민수, 이서연)"
+          aria-label="동반자 이름"
+        />
+      </Field>
+
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <label className="text-base font-extrabold text-golf-900">
@@ -203,83 +185,13 @@ export default function RoundForm({
 
         <TeeColorTabs value={teeColor} onChange={setTeeColor} required />
 
-        <div className="mb-2">
-          <input
-            className="field"
-            value={players[meIndex]?.name ?? "나"}
-            onChange={(e) => updatePlayerName(meIndex, e.target.value)}
-            placeholder="내 이름 (선택)"
-            aria-label="내 이름"
-          />
-        </div>
         <ScorecardGrid
-          scores={meScores}
+          scores={scores.length ? scores : emptyScores()}
           editable
-          onChange={(s) => updatePlayerScores(meIndex, s)}
+          onChange={setScores}
           frontLabel={frontCourse || "전반"}
           backLabel={backCourse || "후반"}
-          playerName={undefined}
         />
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-extrabold text-golf-900">동반자 스코어</h3>
-          <button
-            type="button"
-            onClick={addCompanion}
-            disabled={players.length >= 4}
-            className="rounded-xl border-2 border-golf-500 bg-white px-3 py-2 text-sm font-bold text-golf-800 disabled:opacity-40"
-          >
-            + 동반자 추가
-          </button>
-        </div>
-
-        {players.filter((p) => !p.isMe).length === 0 && (
-          <p className="rounded-xl border-2 border-dashed border-golf-300 bg-white px-3 py-4 text-sm font-medium text-golf-600">
-            동반자를 추가하면 이름과 18홀 스코어를 함께 기록할 수 있어요.
-          </p>
-        )}
-
-        {players.map((p, index) => {
-          if (p.isMe) return null;
-          const total = calcTotals(p.scores).total;
-          return (
-            <div
-              key={`comp-${index}`}
-              className="space-y-3 rounded-2xl border-2 border-golf-300 bg-golf-50/60 p-3"
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  className="field !py-2.5"
-                  value={p.name}
-                  onChange={(e) => updatePlayerName(index, e.target.value)}
-                  placeholder="동반자 이름"
-                  aria-label="동반자 이름"
-                />
-                <span className="shrink-0 rounded-full bg-golf-700 px-2.5 py-1 text-sm font-extrabold text-white">
-                  {total || "–"}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeCompanion(index)}
-                  className="shrink-0 rounded-xl border-2 border-red-300 bg-white px-2.5 py-2 text-xs font-bold text-red-700"
-                  aria-label="동반자 삭제"
-                >
-                  삭제
-                </button>
-              </div>
-              <ScorecardGrid
-                scores={p.scores}
-                editable
-                onChange={(s) => updatePlayerScores(index, s)}
-                frontLabel={frontCourse || "전반"}
-                backLabel={backCourse || "후반"}
-                compact
-              />
-            </div>
-          );
-        })}
       </div>
 
       {error && (

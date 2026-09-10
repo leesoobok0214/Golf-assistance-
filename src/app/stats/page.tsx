@@ -41,7 +41,7 @@ export default function StatsPage() {
       <header className="pt-1">
         <h1 className="text-2xl font-extrabold text-golf-950">통계</h1>
         <p className="text-base font-medium text-golf-700">
-          기기 안 IndexedDB 데이터만 사용해요
+          내 스코어만 집계해요 (기기 안 IndexedDB)
         </p>
       </header>
 
@@ -93,39 +93,6 @@ export default function StatsPage() {
                     <span className="text-2xl font-extrabold text-golf-800">
                       {c.average}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="space-y-2">
-            <h2 className="text-lg font-extrabold text-golf-950">동반자별</h2>
-            {stats.companionStats.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-golf-300 px-4 py-8 text-center text-base font-medium text-golf-600">
-                동반자 스코어가 아직 없어요
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {stats.companionStats.map((c) => (
-                  <li
-                    key={c.name}
-                    className="flex items-center justify-between rounded-2xl border-2 border-golf-200 bg-white px-4 py-3.5 shadow-card"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-base font-extrabold text-golf-950">
-                        {c.name}
-                      </p>
-                      <p className="text-sm font-semibold text-golf-600">
-                        함께한 라운드 {c.rounds}회
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-bold text-golf-600">평균</p>
-                      <p className="text-2xl font-extrabold text-golf-800">
-                        {c.average ?? "–"}
-                      </p>
-                    </div>
                   </li>
                 ))}
               </ul>

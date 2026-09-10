@@ -20,9 +20,10 @@ export interface OcrParseResult {
   backCourse: string;
   /** Detected tee box color, or default when not found (editable). */
   teeColor: TeeColor;
-  /** Legacy display string — also reflected in players. */
+  /** Optional companion names only (comma-separated). */
   companions: string;
   scores: HoleScores;
+  /** Always a single me-player after parse. */
   players: PlayerScores[];
 }
 
@@ -375,41 +376,29 @@ export function parseOcrText(raw: string): OcrParseResult {
   const { frontCourse, backCourse } = extractFrontBack(raw, lines);
   const teeColor = normalizeTeeColor(extractTeeColor(raw));
 
-  let playerRows = extractPlayerRows(raw, lines);
+  // Multi-player rows: keep first (or 나/ME) as me scores; other names → companions text only
+  const playerRows = extractPlayerRows(raw, lines);
+  let scores = emptyScores();
+  let companions = "";
 
-  // Fallback: single score run as "나"
   if (playerRows.length === 0) {
-    const scores = extractSingleScoreRun(raw);
-    playerRows = [{ name: "나", scores, isMe: true }];
+    scores = extractSingleScoreRun(raw);
   } else {
-    // Mark first as me if none marked
-    playerRows = playerRows.map((p, i) => ({
-      ...p,
-      scores: padScores(p.scores),
-      isMe: i === 0,
-    }));
-    // Prefer a row named like 나 / ME / self as me
     const meIdx = playerRows.findIndex((p) =>
       /^(나|저|본인|ME|SELF|MY)$/i.test(p.name)
     );
-    if (meIdx > 0) {
-      playerRows = playerRows.map((p, i) => ({ ...p, isMe: i === meIdx }));
-      // Move me to front
-      const [me] = playerRows.splice(meIdx, 1);
-      playerRows.unshift(me);
-    } else if (!playerRows[0].name || /^플레이어/.test(playerRows[0].name)) {
-      playerRows[0] = { ...playerRows[0], name: "나", isMe: true };
-    } else {
-      playerRows[0] = { ...playerRows[0], isMe: true };
-    }
+    const idx = meIdx >= 0 ? meIdx : 0;
+    scores = padScores(playerRows[idx].scores);
+    companions = playerRows
+      .filter((_, i) => i !== idx)
+      .map((p) => (p.name || "").trim())
+      .filter((n) => n && !/^플레이어\d*$/i.test(n))
+      .join(", ");
   }
 
-  const me = playerRows.find((p) => p.isMe) ?? playerRows[0];
-  const companions = playerRows
-    .filter((p) => !p.isMe)
-    .map((p) => p.name)
-    .filter(Boolean)
-    .join(", ");
+  const players: PlayerScores[] = [
+    { name: "나", scores: padScores(scores), isMe: true },
+  ];
 
   return {
     raw,
@@ -420,8 +409,8 @@ export function parseOcrText(raw: string): OcrParseResult {
     backCourse,
     teeColor,
     companions,
-    scores: padScores(me.scores),
-    players: playerRows,
+    scores: padScores(scores),
+    players,
   };
 }
 

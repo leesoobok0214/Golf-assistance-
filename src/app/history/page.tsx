@@ -56,7 +56,7 @@ export default function HistoryPage() {
 
       <input
         className="field"
-        placeholder="코스·동반자·날짜 검색"
+        placeholder="코스·동반자 이름·날짜 검색"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         aria-label="검색"

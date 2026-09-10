@@ -1,5 +1,4 @@
-import type { GolfRound, PlayerScores } from "./types";
-import { calcTotals, companionPlayers, padScores } from "./types";
+import type { GolfRound } from "./types";
 
 export interface StatsSummary {
   count: number;
@@ -8,15 +7,6 @@ export interface StatsSummary {
   worst: number | null;
   trend: { date: string; total: number; courseName: string }[];
   perCourse: { courseName: string; count: number; average: number }[];
-  companionStats: {
-    name: string;
-    rounds: number;
-    average: number | null;
-  }[];
-}
-
-function playerTotal(p: PlayerScores): number {
-  return calcTotals(padScores(p?.scores)).total;
 }
 
 export function computeStats(rounds: GolfRound[]): StatsSummary {
@@ -29,7 +19,6 @@ export function computeStats(rounds: GolfRound[]): StatsSummary {
       worst: null,
       trend: [],
       perCourse: [],
-      companionStats: [],
     };
   }
   const totals = real.map((r) => r.total);
@@ -63,31 +52,6 @@ export function computeStats(rounds: GolfRound[]): StatsSummary {
     }))
     .sort((a, b) => a.average - b.average);
 
-  const byCompanion = new Map<string, number[]>();
-  for (const r of real) {
-    for (const c of companionPlayers(r.players)) {
-      const t = playerTotal(c);
-      const arr = byCompanion.get(c.name) ?? [];
-      arr.push(t);
-      byCompanion.set(c.name, arr);
-    }
-  }
-  const companionStats = Array.from(byCompanion.entries())
-    .map(([name, scores]) => {
-      const scored = scores.filter((s) => s > 0);
-      return {
-        name,
-        rounds: scores.length,
-        average:
-          scored.length > 0
-            ? Math.round(
-                (scored.reduce((a, b) => a + b, 0) / scored.length) * 10
-              ) / 10
-            : null,
-      };
-    })
-    .sort((a, b) => b.rounds - a.rounds);
-
   return {
     count: real.length,
     average,
@@ -95,6 +59,5 @@ export function computeStats(rounds: GolfRound[]): StatsSummary {
     worst,
     trend,
     perCourse,
-    companionStats,
   };
 }

@@ -1,6 +1,6 @@
 export type HoleScores = (number | null)[];
 
-/** Per-player 18-hole scores. User is marked with isMe (or first entry). */
+/** Per-player 18-hole scores. Kept for IndexedDB compatibility; hydrate keeps a single me-player. */
 export type PlayerScores = {
   name: string;
   scores: HoleScores;
@@ -42,11 +42,11 @@ export interface GolfRound {
   backCourse: string;
   /** Tee box: white / blue / red. Defaults to blue for legacy rows. */
   teeColor: TeeColor;
-  /** @deprecated Prefer players[]. Kept for legacy IndexedDB rows. */
+  /** Optional companion names only (comma-separated). No per-companion scores. */
   companions?: string;
-  /** User (isMe) hole scores — always kept in sync with players. */
+  /** My hole scores. */
   scores: HoleScores;
-  /** All players including the user. */
+  /** Compatibility: always a single me-player after hydrate/save. */
   players: PlayerScores[];
   total: number;
   outTotal: number;
@@ -64,7 +64,6 @@ export type RoundInput = Omit<
   id?: number;
   isSample?: boolean;
   ocrRaw?: string;
-  /** Allow legacy companion string on input; normalized on save. */
   companions?: string;
   /** Optional on input; saveRound / hydrate fall back to DEFAULT_TEE_COLOR. */
   teeColor?: TeeColor;
@@ -99,37 +98,32 @@ export function mePlayer(players: PlayerScores[] | undefined): PlayerScores {
   }
   const p = players.find((x) => x.isMe) ?? players[0];
   return {
-    name: (p.name || "나").trim() || "나",
-    scores: padScores(p.scores),
+    name: (p?.name || "나").trim() || "나",
+    scores: padScores(p?.scores),
     isMe: true,
   };
 }
 
-export function companionPlayers(
-  players: PlayerScores[] | undefined
-): PlayerScores[] {
-  if (!players?.length) return [];
-  const me = players.find((p) => p.isMe) ?? players[0];
-  return players
-    .filter((p) => p !== me && !p.isMe)
-    .map((p) => ({
-      name: (p.name || "동반자").trim() || "동반자",
-      scores: padScores(p.scores),
-      isMe: false as const,
-    }));
-}
-
-/** Build companions display string from players (excluding me). */
-export function companionsLabel(players: PlayerScores[] | undefined): string {
-  return companionPlayers(players)
-    .map((p) => p.name.trim())
+/** Names-only companion list from a comma-separated string. */
+export function companionsLabel(
+  companionsOrPlayers?: string | PlayerScores[] | null
+): string {
+  if (typeof companionsOrPlayers === "string") {
+    return companionsOrPlayers.trim();
+  }
+  if (!companionsOrPlayers?.length) return "";
+  const me = companionsOrPlayers.find((p) => p?.isMe) ?? companionsOrPlayers[0];
+  return companionsOrPlayers
+    .filter((p) => p && p !== me && !p.isMe)
+    .map((p) => (p.name || "").trim())
     .filter(Boolean)
     .join(", ");
 }
 
 /**
- * Normalize any legacy or partial round shape into a consistent GolfRound-like
- * object with players[] and synced user scores.
+ * Normalize any legacy or partial round into my-score-only shape.
+ * players[] is always a single me-player; companions is names-only text.
+ * Never throws — safe for hydrate.
  */
 export function normalizePlayers(
   input: {
@@ -139,53 +133,47 @@ export function normalizePlayers(
   },
   defaultMeName = "나"
 ): { scores: HoleScores; players: PlayerScores[]; companions: string } {
-  const legacyCompanions = (input.companions ?? "").trim();
+  try {
+    let scores = padScores(input.scores);
+    let meName = defaultMeName;
+    let companions = (input.companions ?? "").trim();
 
-  if (input.players && input.players.length > 0) {
-    const players = input.players.map((p, i) => ({
-      name:
-        (
-          p?.name ||
-          (p?.isMe || i === 0 ? defaultMeName : `동반자${i}`)
-        ).trim() || defaultMeName,
-      scores: padScores(p?.scores),
-      isMe: !!p?.isMe || (i === 0 && !input.players!.some((x) => x?.isMe)),
-    }));
-    // Ensure exactly one isMe
-    const meIdx = players.findIndex((p) => p.isMe);
-    players.forEach((p, i) => {
-      p.isMe = i === (meIdx >= 0 ? meIdx : 0);
-    });
-    const me = players.find((p) => p.isMe)!;
-    // Prefer me scores if filled; else fall back to top-level scores
-    const meScores = me.scores.some((s) => s != null)
-      ? me.scores
-      : padScores(input.scores);
-    me.scores = meScores;
+    if (Array.isArray(input.players) && input.players.length > 0) {
+      const safePlayers = input.players.filter(Boolean);
+      const me =
+        safePlayers.find((p) => p?.isMe) ?? safePlayers[0] ?? {
+          name: defaultMeName,
+          scores: emptyScores(),
+          isMe: true,
+        };
+      meName = (me.name || defaultMeName).trim() || defaultMeName;
+      const meScores = padScores(me.scores);
+      // Prefer filled me scores; else top-level scores
+      if (meScores.some((s) => s != null)) {
+        scores = meScores;
+      } else if (!scores.some((s) => s != null)) {
+        scores = meScores;
+      }
+      if (!companions) {
+        companions = safePlayers
+          .filter((p) => p !== me && !p.isMe)
+          .map((p) => (p.name || "").trim())
+          .filter(Boolean)
+          .join(", ");
+      }
+    }
+
     return {
-      scores: meScores,
-      players,
-      companions: companionsLabel(players) || legacyCompanions,
+      scores,
+      players: [{ name: meName, scores, isMe: true }],
+      companions,
+    };
+  } catch {
+    const scores = padScores(input?.scores);
+    return {
+      scores,
+      players: [{ name: defaultMeName, scores, isMe: true }],
+      companions: (input?.companions ?? "").trim(),
     };
   }
-
-  // Legacy: companions string + user scores only
-  const scores = padScores(input.scores);
-  const players: PlayerScores[] = [
-    { name: defaultMeName, scores, isMe: true },
-  ];
-  if (legacyCompanions) {
-    const names = legacyCompanions
-      .split(/[,，、\/|]+/)
-      .map((n) => n.trim())
-      .filter(Boolean);
-    for (const name of names) {
-      players.push({ name, scores: emptyScores(), isMe: false });
-    }
-  }
-  return {
-    scores,
-    players,
-    companions: companionsLabel(players) || legacyCompanions,
-  };
 }

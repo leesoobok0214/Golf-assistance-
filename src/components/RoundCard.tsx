@@ -3,18 +3,11 @@
 import Link from "next/link";
 import TeeChip from "./TeeChip";
 import type { GolfRound } from "@/lib/types";
-import {
-  calcTotals,
-  companionPlayers,
-  companionsLabel,
-  padScores,
-} from "@/lib/types";
 
 export default function RoundCard({ round }: { round: GolfRound }) {
   try {
-    const comps = companionPlayers(round.players);
-    const label = companionsLabel(round.players) || round.companions || "";
     const id = round.id;
+    const companionNames = (round.companions ?? "").trim();
 
     return (
       <Link
@@ -43,26 +36,10 @@ export default function RoundCard({ round }: { round: GolfRound }) {
                 {[round.frontCourse, round.backCourse].filter(Boolean).join(" / ")}
               </p>
             )}
-            {label && (
+            {companionNames && (
               <p className="mt-1.5 truncate text-sm font-medium text-golf-800">
-                동반 {label}
+                동반 {companionNames}
               </p>
-            )}
-            {comps.some((c) => calcTotals(padScores(c.scores)).total > 0) && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {comps.map((c, i) => {
-                  const t = calcTotals(padScores(c.scores)).total;
-                  if (!t) return null;
-                  return (
-                    <span
-                      key={`${c.name}-${i}`}
-                      className="rounded-lg border border-golf-300 bg-golf-50 px-2 py-0.5 text-xs font-bold text-golf-900"
-                    >
-                      {c.name || "동반자"} {t}
-                    </span>
-                  );
-                })}
-              </div>
             )}
           </div>
           <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-xl border-2 border-golf-300 bg-golf-100">

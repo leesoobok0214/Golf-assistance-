@@ -1,4 +1,4 @@
-import type { PlayerScores, RoundInput } from "./types";
+import type { RoundInput } from "./types";
 import { emptyScores } from "./types";
 import { db, saveRound } from "./db";
 
@@ -10,20 +10,6 @@ function scoresFrom(arr: number[]): (number | null)[] {
   return s;
 }
 
-function playersOf(
-  meScores: number[],
-  companions: { name: string; scores: number[] }[]
-): PlayerScores[] {
-  return [
-    { name: "나", scores: scoresFrom(meScores), isMe: true },
-    ...companions.map((c) => ({
-      name: c.name,
-      scores: scoresFrom(c.scores),
-      isMe: false,
-    })),
-  ];
-}
-
 const SAMPLE_ROUNDS: RoundInput[] = [
   {
     courseName: "레이크사이드 CC (예시)",
@@ -33,19 +19,14 @@ const SAMPLE_ROUNDS: RoundInput[] = [
     backCourse: "사이드",
     teeColor: "blue",
     scores: scoresFrom([5, 4, 4, 5, 3, 4, 5, 4, 5, 4, 5, 3, 4, 5, 4, 4, 5, 4]),
-    players: playersOf(
-      [5, 4, 4, 5, 3, 4, 5, 4, 5, 4, 5, 3, 4, 5, 4, 4, 5, 4],
-      [
-        {
-          name: "김민수",
-          scores: [4, 5, 4, 4, 3, 5, 4, 5, 4, 5, 4, 4, 5, 4, 4, 5, 4, 5],
-        },
-        {
-          name: "이서연",
-          scores: [5, 5, 5, 4, 4, 4, 5, 4, 5, 4, 5, 5, 4, 4, 5, 4, 5, 4],
-        },
-      ]
-    ),
+    players: [
+      {
+        name: "나",
+        scores: scoresFrom([5, 4, 4, 5, 3, 4, 5, 4, 5, 4, 5, 3, 4, 5, 4, 4, 5, 4]),
+        isMe: true,
+      },
+    ],
+    companions: "김민수, 이서연",
     isSample: true,
   },
   {
@@ -56,15 +37,14 @@ const SAMPLE_ROUNDS: RoundInput[] = [
     backCourse: "서코스",
     teeColor: "white",
     scores: scoresFrom([4, 5, 4, 6, 4, 5, 4, 5, 5, 5, 4, 4, 5, 6, 4, 5, 4, 5]),
-    players: playersOf(
-      [4, 5, 4, 6, 4, 5, 4, 5, 5, 5, 4, 4, 5, 6, 4, 5, 4, 5],
-      [
-        {
-          name: "박준호",
-          scores: [5, 4, 5, 5, 3, 4, 5, 4, 4, 4, 5, 4, 4, 5, 5, 4, 5, 4],
-        },
-      ]
-    ),
+    players: [
+      {
+        name: "나",
+        scores: scoresFrom([4, 5, 4, 6, 4, 5, 4, 5, 5, 5, 4, 4, 5, 6, 4, 5, 4, 5]),
+        isMe: true,
+      },
+    ],
+    companions: "박준호",
     isSample: true,
   },
   {
@@ -75,23 +55,14 @@ const SAMPLE_ROUNDS: RoundInput[] = [
     backCourse: "클래식",
     teeColor: "red",
     scores: scoresFrom([5, 5, 4, 4, 3, 5, 4, 4, 6, 4, 5, 4, 5, 4, 3, 5, 5, 4]),
-    players: playersOf(
-      [5, 5, 4, 4, 3, 5, 4, 4, 6, 4, 5, 4, 5, 4, 3, 5, 5, 4],
-      [
-        {
-          name: "최유진",
-          scores: [4, 4, 5, 4, 4, 4, 5, 5, 4, 5, 4, 4, 4, 5, 4, 4, 5, 5],
-        },
-        {
-          name: "정하늘",
-          scores: [6, 5, 5, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4, 5, 4, 5],
-        },
-        {
-          name: "한도윤",
-          scores: [4, 5, 4, 5, 3, 4, 4, 5, 5, 4, 4, 5, 4, 4, 4, 5, 4, 4],
-        },
-      ]
-    ),
+    players: [
+      {
+        name: "나",
+        scores: scoresFrom([5, 5, 4, 4, 3, 5, 4, 4, 6, 4, 5, 4, 5, 4, 3, 5, 5, 4]),
+        isMe: true,
+      },
+    ],
+    companions: "최유진, 정하늘, 한도윤",
     isSample: true,
   },
 ];
