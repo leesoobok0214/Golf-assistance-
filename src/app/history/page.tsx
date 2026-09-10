@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import RoundCard from "@/components/RoundCard";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { searchRounds } from "@/lib/db";
 import type { GolfRound } from "@/lib/types";
 
@@ -44,6 +45,7 @@ export default function HistoryPage() {
   }, [rounds, filter]);
 
   return (
+    <ErrorBoundary label="history">
     <main className="page space-y-4">
       <header className="flex items-center justify-between pt-1">
         <h1 className="text-2xl font-extrabold text-golf-950">라운드 기록</h1>
@@ -102,11 +104,12 @@ export default function HistoryPage() {
           <p className="text-sm font-bold text-golf-600">
             {filtered.length}개 라운드
           </p>
-          {filtered.map((r) => (
-            <RoundCard key={r.id} round={r} />
+          {filtered.map((r, i) => (
+            <RoundCard key={r.id ?? `round-${i}`} round={r} />
           ))}
         </div>
       )}
     </main>
+    </ErrorBoundary>
   );
 }

@@ -86,7 +86,7 @@ const withPWA = withPWAInit({
     clientsClaim: true,
     cleanupOutdatedCaches: true,
     // Prefix Workbox caches so old v3 (and earlier) caches are orphaned after deploy
-    cacheId: "golf-assistant-v4",
+    cacheId: "golf-assistant-v5",
     runtimeCaching: buildRuntimeCaching(),
   },
 });

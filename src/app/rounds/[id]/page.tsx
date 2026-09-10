@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import GroupScorecard from "@/components/GroupScorecard";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import TeeChip from "@/components/TeeChip";
 import { deleteRound, getRound } from "@/lib/db";
 import type { GolfRound, HoleScores } from "@/lib/types";
@@ -112,6 +113,7 @@ export default function RoundDetailPage() {
   const stamp = formatStamp(round.date, round.time);
 
   return (
+    <ErrorBoundary label="round-detail">
     <main className="mx-auto min-h-[100dvh] max-w-lg space-y-4 px-0 pb-28 pt-0">
       {/* —— Image A: Hero / my score only —— */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#1a3a28] via-[#2d5a3d] to-[#1e4030] px-4 pb-5 pt-3 text-white shadow-soft">
@@ -220,6 +222,7 @@ export default function RoundDetailPage() {
         </button>
       </div>
     </main>
+    </ErrorBoundary>
   );
 }
 
